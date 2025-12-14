@@ -17,6 +17,7 @@ from app.modules.module_4.implementations import (
 def run_demo():
     print("=== PROJECT MENU ===")
 
+            
     # Ogrenci 1 (Modul 1)
     base_1 = [
         Base1SubClass1("parametre1"),
