@@ -14,23 +14,40 @@ class Base2SubClass2(BaseClass2):
 from app.modules.module_2.base import OdemeYontemi 
 
 class KrediKartiOdeme(OdemeYontemi): ##subclass
-    def __init__(self, kisi: str, bakiye: float, para_birimi: str, card_no,card_name: str,cvv: int):
-     super().__init(kisi, bakiye, para_birimi)
-     self.card_no = card_no
-     self.card_name = card_name
+   def __init__(self, kisi: str, bakiye: float, para_birimi: str, kart_numarası: str = "" ,kart_ismi: str = "",cvv: int =0):
+     super().__init__(kisi, bakiye, para_birimi)
+     self.kart_numarasi = kart_numarasi
+     self.kart_ismi = kart_ismi
      self.cvv = cvv #attribute
 
-    def yeterli_bakiye_mi(self,tutar: float) -> bool:
-       return self.bakiye >= tutar
+   def yetkilendir(self, tutar: float) -> bool:
+    return self.yeterli_bakiye_mi(tutar)
+   def odeme_yap(self, tutar: float) -> bool:
+      if not self.yetkilendir(tutar):
+         #işlem kaydı oluşturma
+         kayit = self.islem_kaydi(tutar = tutar , sonuc = False , aciklama = "Kredi Kartı ödemesi reddedildi : YETERSİZ BAKİYE")
+         print("[Kredi Kartı] Ödeme başarısız :(")
+         print(kayit)
+         return False
+      self.bakiye_dus(tutar)
+      #işlem kaydı oluşturma
+      kayit = self.islem_kaydi(tutar = tutar, sonuc = True, aciklama = "[Kredi Kartı] ile yapılan İŞLEM BAŞARILI :)")
+      print(
+            f"""
+
+        KREDİ KARTI ÖDEMESİ
+----------------------------------
+Kart No   : {self.kart_numarasi}
+Kart Adı  : {self.kart_ismi}
+Tutar     : {tutar} {self.para_birimi}
+Kalan     : {self.bakiye} {self.para_birimi}
+----------------------------------
+"""
+        )
+      print(self.ozet_bilgi())
+      print("İşlem Kaydı : ",kayit)
+      return True
     
-    def odeme(self, tutar: float) -> bool:
-        if self.yeterli_bakiye_mi(tutar):
-            self.bakiye -= tutar
-            print(f"Kart ödemesi BAŞARILI: {tutar} {self.para_birimi}")
-            return True
-        else:
-           print("Kart Ödemesi BAŞARISIZ : Yetersiz Bakiye")
-        return False
 
 class NakitOdeme(OdemeYontemi):
    def __init__(self, kisi: str, bakiye: float, para_birimi: str = "TL"):
@@ -39,53 +56,72 @@ class NakitOdeme(OdemeYontemi):
       self.gunluk_islem_sayisi = 0
 
    def yetkilendir(self, tutar: float) -> bool:   #kasadki nakit parayı kontrol ediyor
-      return self.bakiye >= tutar
+      return self.yeterli_bakiye_mi(tutar)
+   
    def odeme_yap(self, tutar: float) -> bool:
-      if self.yetkilendir(tutar):
-         self.bakiye -= tutar
-         self.fis_no += 1
-         self.gunluk_islem_sayisi += 1
-         print( f"[Nakit] Ödeme başarılı | Tutar: {tutar} {self.para_birimi} | "
-                f"Fiş No: {self.fis_no} | Günlük İşlem: {self.gunluk_islem_sayisi} | "
-                f"Kalan Bakiye: {self.bakiye}")
-         return True
-      
-      print("Nakit ödeme BAŞARISIZ: Yetersiz nakit")
-      return False
+      if not self.yetkilendir(tutar):
+         #işlem kaydı oluşturma
+         kayit = self.islem_kaydi(tutar = tutar, sonuc = False, aciklama = "Nakit Ödeme reddedildi : YTERSİZ BAKİYE")
+         print("[Nakit] ödeme başarısız")
+         print(kayit)
+         return False
+      self.bakiye_dus(tutar)
+      self.fis_no += 1
+      self.gunluk_islem_sayisi += 1
+      #işlem kaydı oluşturma
+      kayit = self.islem_kaydi(tutar = tutar, sonuc = True, aciklama = "Nakit ödeme başarılı")
+      print(
+            f"""
+           NAKİT ÖDEME
+----------------------------------
+Fiş No              : {self.fis_no}
+Günlük İşlem Sayısı : {self.gunluk_islem_sayisi}
+Ödenen Tutar        : {tutar} {self.para_birimi}
+Kalan Bakiye        : {self.bakiye} {self.para_birimi}
+----------------------------------
+"""        )
+      print(self.ozet_bilgi())
+      print("işlem Kaydı:",kayit)
+      return True
+
       
 class OnlineCuzdanOdeme(OdemeYontemi):
    def __init__(self, isim:str, bakiye: float, para_birimi: str = "TL", hesap_id: str = ""):
       super().__init__(kisi, bakiye, para_birimi)
       self.hesap_id = hesap_id
-      self.basarisiz_denem_sayisi = 0
+      self.basarisiz_deneme_sayisi = 0
       self.toplam_islem_sayisi = 0
     
    def yetkilendir(self, tutar: float) -> bool:
-      return self.bakiye>= tutar
+      return self.yeterli_bakiye_mi(tutar)
    def odeme_yap(self, tutar: float) -> bool:
-      if self.yetkilendir(tutar):
-         self.bakiye -= tutar
-         self.toplam_islem_sayisi += 1
-         print(
-    f"""
-
-----------------------------------
-Hesap ID          : {self.hesap_id}
-Ödenen Tutar      : {tutar} {self.para_birimi}
-Toplam İşlem Sayısı: {self.toplam_islem_sayisi}
-Kalan Bakiye      : {self.bakiye} {self.para_birimi}
-----------------------------------
-""")
-         return True
-      
-      self.basarisiz_deneme_sayisi += 1
+      if not self.yetkilendir(tutar):
+            self.basarisiz_deneme_sayisi += 1
+            #işlem kaydı oluşturma
+            kayit = self.islem_kaydi(tutar=tutar, sonuc=False,aciklama="Online cüzdan ödeme reddedildi: yetersiz bakiye")
+            
+            print("[Online Cüzdan] Ödeme başarısız:(")
+            print("Başarısız deneme sayısı:", self.basarisiz_deneme_sayisi)
+            print(kayit)
+            return False
+      self.bakiye_dus(tutar)
+      self.toplam_islem_sayisi += 1     
+      #işlem kaydı oluşturma
+      kayit = self.islem_kaydi(tutar = tutar, sonuc = True,aciklama = "Online cüzdan ödeme başarılı:)") 
       print(
             f"""
-[Online Cüzdan] Ödeme Başarısız
-Cüzdan Adı: {self.cuzdan_adi}
-Başarısız Deneme Sayısı: {self.basarisiz_deneme_sayisi}
+        ONLINE CÜZDAN ÖDEMESİ
+----------------------------------
+Hesap ID            : {self.hesap_id}
+Ödenen Tutar        : {tutar} {self.para_birimi}
+Toplam İşlem Sayısı : {self.toplam_islem_sayisi}
+Kalan Bakiye        : {self.bakiye} {self.para_birimi}
+----------------------------------
 """)
-      return False
+      print(self.ozet_bilgi())
+      print("İşlem Kaydı:", kayit)
+      return True
+
 
 class OdemeYonetimi:
    def odeme_yap(self,odeme_yontemi, tutar): #attiribute
