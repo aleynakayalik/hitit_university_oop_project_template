@@ -27,6 +27,10 @@ class OdemeYontemi(ABC):
     @abstractmethod
     def odeme_yap(self, tutar: float) -> bool:  #Ödeme işlemini gerçekleştirir
         pass
+    #her alt sınıfta farklı olduğu için
+    @abstractmethod
+    def odeme_tipi(self) -> str:
+        pass
     
 
     #getter metotlar
@@ -54,15 +58,19 @@ class OdemeYontemi(ABC):
         return (
             f"Kişi : {self.kisi}" |
             f"Bakiye : {self.bakiye} {self.para_birimi}" |
-            f"Ödeme Yöntemi : {self.__class__.__name__}"  #polimorfizm
+            f"Ödeme Yöntemi : {self.__class__.__name__}" |
+            f"Ödeme Tipi : {self.odeme_tipi()}" #polimorfizm
         )
-    
-    def islem_kaydi(self, tutar: float, sonuc: bool, aciklama: str ="") -> dict:
+    #tüm ödeme yöntemleri için ortak olduğu için
+    def islem_kaydi(self, tutar: float, sonuc: bool, aciklama: str = "") -> dict:
         return {
             "kisi": self.kisi,
-            "odeme_yontemi": self.__class__.__name__,
+            "odeme_tipi": self.odeme_tipi(), #polimorfizm Kredi Kartı şeklinde çıktı verir
+            "sinif_adı": self.__class__.__name__, #teknik çıktı olur KrediKartiOdeme gibi
             "tutar": tutar,
             "para_birimi": self.para_birimi,
             "sonuc": sonuc,
             "aciklama": aciklama
         }
+    
+    

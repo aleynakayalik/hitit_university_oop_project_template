@@ -20,8 +20,12 @@ class KrediKartiOdeme(OdemeYontemi): ##subclass
      self.kart_ismi = kart_ismi
      self.cvv = cvv #attribute
 
+   def odeme_tipi(self) -> str:
+      return "Kredi Kartı"
+   
    def yetkilendir(self, tutar: float) -> bool:
     return self.yeterli_bakiye_mi(tutar)
+   
    def odeme_yap(self, tutar: float) -> bool:
       if not self.yetkilendir(tutar):
          #işlem kaydı oluşturma
@@ -29,12 +33,13 @@ class KrediKartiOdeme(OdemeYontemi): ##subclass
          print("[Kredi Kartı] Ödeme başarısız :(")
          print(kayit)
          return False
+      
       self.bakiye_dus(tutar)
       #işlem kaydı oluşturma
       kayit = self.islem_kaydi(tutar = tutar, sonuc = True, aciklama = "[Kredi Kartı] ile yapılan İŞLEM BAŞARILI :)")
+      
       print(
             f"""
-
         KREDİ KARTI ÖDEMESİ
 ----------------------------------
 Kart No   : {self.kart_numarasi}
@@ -47,6 +52,7 @@ Kalan     : {self.bakiye} {self.para_birimi}
       print(self.ozet_bilgi())
       print("İşlem Kaydı : ",kayit)
       return True
+   
     
 
 class NakitOdeme(OdemeYontemi):
@@ -55,7 +61,11 @@ class NakitOdeme(OdemeYontemi):
       self.fis_no = 0    
       self.gunluk_islem_sayisi = 0
 
-   def yetkilendir(self, tutar: float) -> bool:   #kasadki nakit parayı kontrol ediyor
+   def odeme_tipi(self) -> str:
+      return "Nakit"
+
+   #kasadaki nakit parayı kontrol ediyor
+   def yetkilendir(self, tutar: float) -> bool:   
       return self.yeterli_bakiye_mi(tutar)
    
    def odeme_yap(self, tutar: float) -> bool:
@@ -65,11 +75,13 @@ class NakitOdeme(OdemeYontemi):
          print("[Nakit] ödeme başarısız")
          print(kayit)
          return False
+      
       self.bakiye_dus(tutar)
       self.fis_no += 1
       self.gunluk_islem_sayisi += 1
       #işlem kaydı oluşturma
       kayit = self.islem_kaydi(tutar = tutar, sonuc = True, aciklama = "Nakit ödeme başarılı")
+      
       print(
             f"""
            NAKİT ÖDEME
@@ -83,17 +95,21 @@ Kalan Bakiye        : {self.bakiye} {self.para_birimi}
       print(self.ozet_bilgi())
       print("işlem Kaydı:",kayit)
       return True
-
-      
+   
+   
 class OnlineCuzdanOdeme(OdemeYontemi):
    def __init__(self, isim:str, bakiye: float, para_birimi: str = "TL", hesap_id: str = ""):
       super().__init__(kisi, bakiye, para_birimi)
       self.hesap_id = hesap_id
       self.basarisiz_deneme_sayisi = 0
       self.toplam_islem_sayisi = 0
-    
+
+   def odeme_tipi(self) -> str:
+      return "Online Cüzdan"
+   #kasadaki nakit parayı kontrol ediyor
    def yetkilendir(self, tutar: float) -> bool:
       return self.yeterli_bakiye_mi(tutar)
+   
    def odeme_yap(self, tutar: float) -> bool:
       if not self.yetkilendir(tutar):
             self.basarisiz_deneme_sayisi += 1
@@ -104,10 +120,12 @@ class OnlineCuzdanOdeme(OdemeYontemi):
             print("Başarısız deneme sayısı:", self.basarisiz_deneme_sayisi)
             print(kayit)
             return False
+      
       self.bakiye_dus(tutar)
       self.toplam_islem_sayisi += 1     
       #işlem kaydı oluşturma
       kayit = self.islem_kaydi(tutar = tutar, sonuc = True,aciklama = "Online cüzdan ödeme başarılı:)") 
+      
       print(
             f"""
         ONLINE CÜZDAN ÖDEMESİ
@@ -121,8 +139,10 @@ Kalan Bakiye        : {self.bakiye} {self.para_birimi}
       print(self.ozet_bilgi())
       print("İşlem Kaydı:", kayit)
       return True
+   
+   
 
-
+""""
 class OdemeYonetimi:
    def odeme_yap(self,odeme_yontemi, tutar): #attiribute
       if tutar <=0:
@@ -141,9 +161,44 @@ class OdemeYonetimi:
       
       print("Ödeme işleminde beklenmeyen bir hata oluştu!!")
       return False
-
+"""
          
 
+class OdemeYonetimi:
+    def __init__(self):
+        self.islem_gecmisi = []  # işlem kayıtlarını tutar
+
+    def odeme_yap(self, odeme_yontemi, tutar: float) -> bool:
+        if tutar <= 0:
+            print("[Servis] Geçersiz ödeme tutarı.")
+            return False
+
+        #Ödeme işlemini başlat (yetkilendirme + ödeme subclass içinde)
+        sonuc = odeme_yontemi.odeme_yap(tutar)
+
+        #İşlem kaydı oluşturuyor (base class'tan)
+        kayit = odeme_yontemi.islem_kaydi(
+            tutar=tutar,
+            sonuc=sonuc,
+            aciklama="Servis üzerinden ödeme denemesi"
+        )
+
+        #Kayıtları sakla
+        self.islem_gecmisi.append(kayit)
+
+        if sonuc:
+            print("[Servis] Ödeme başarıyla tamamlandı.")
+        else:
+            print("[Servis] Ödeme başarısız.")
+
+        return sonuc
+
+    def islem_gecmisini_listele(self):
+        return self.islem_gecmisi
+    
+
+class YemekhaneServisi:
+   pass
 
 
     

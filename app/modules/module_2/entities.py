@@ -1,3 +1,5 @@
+
+#
 class MenuUrunu:
     def __init__(self, urun_id: int, ad: str, fiyat: float):
         self.urun_id = urun_id
