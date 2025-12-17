@@ -98,7 +98,7 @@ Kalan Bakiye        : {self.bakiye} {self.para_birimi}
    
    
 class OnlineCuzdanOdeme(OdemeYontemi):
-   def __init__(self, isim:str, bakiye: float, para_birimi: str = "TL", hesap_id: str = ""):
+   def __init__(self, kisi:str, bakiye: float, para_birimi: str = "TL", hesap_id: str = ""):
       super().__init__(kisi, bakiye, para_birimi)
       self.hesap_id = hesap_id
       self.basarisiz_deneme_sayisi = 0
@@ -141,27 +141,6 @@ Kalan Bakiye        : {self.bakiye} {self.para_birimi}
       return True
    
    
-
-""""
-class OdemeYonetimi:
-   def odeme_yap(self,odeme_yontemi, tutar): #attiribute
-      if tutar <=0:
-         print("Geçersiz ödeme tutarı.")
-         return False
-      
-      yetkili_mi = odeme_yontemi.yetkilendir(tutar) #otomatik olarak yetkilendir metodunu çalıştırıyor
-      if not yetkili_mi:
-         print("Ödeme yetkilendirilemedi.")
-         return False
-      
-      odeme_basalili_mi = odeme_yontemi.odeme_yap(tutar)
-      if odeme_basalili_mi:
-         print("Ödeme işlemi başarıyla tamamandı.")
-         return True
-      
-      print("Ödeme işleminde beklenmeyen bir hata oluştu!!")
-      return False
-"""
          
 
 class OdemeYonetimi:
@@ -173,17 +152,17 @@ class OdemeYonetimi:
             print("[Servis] Geçersiz ödeme tutarı.")
             return False
 
-        #Ödeme işlemini başlat (yetkilendirme + ödeme subclass içinde)
-        sonuc = odeme_yontemi.odeme_yap(tutar)
+        #Ödeme işlemini başlatıyor (yetkilendirme + ödeme subclass içinde)
+        sonuc = odeme_yontemi.odeme_yap(tutar) #polimorfizim örneği ödeme yönteminin türünden bağımsız olarak odeme_yap metodunu çağırmak
 
-        #İşlem kaydı oluşturuyor (base class'tan)
+        #İşlem kaydı oluşturma (base class'tan)
         kayit = odeme_yontemi.islem_kaydi(
             tutar=tutar,
             sonuc=sonuc,
             aciklama="Servis üzerinden ödeme denemesi"
         )
 
-        #Kayıtları sakla
+        #Kayıtları saklamak için
         self.islem_gecmisi.append(kayit)
 
         if sonuc:
