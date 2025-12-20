@@ -10,8 +10,14 @@ class PaymentMethod(ABC):
 
         self.set_owner(owner)
         self.set_currency(currency)
+
+        #ikisi aynı anda doluysa karışmasın diye
+        if balance is not None and limt is not None:
+            raise ValueError("Aynı anda hem balance hem limit verilemez.")
+             
         self.set_balance(balance)
         self.set_limit(limit)
+    
     #ödeme yönteminin sahibini döndürür -getter-
     def get_owner(self) -> str:
         return self.__owner
@@ -25,10 +31,11 @@ class PaymentMethod(ABC):
         if len(owner) < 2:
             raise ValueError("owner en az 2 karakter olmalıdır.")
         self.__owner = owner
+    
     #para birimini döndürür -getter-
     def get_currency(self) -> str:
         return self.__currency
-    #para birimini ayarar -setter-
+    #para birimini ayarlar -setter-
     def set_currency(self, currency: str) -> None:
         if not isinstance(currency, str):
             raise ValueError("currency metin olmalıdır.")
@@ -39,6 +46,7 @@ class PaymentMethod(ABC):
         if currency not in ["TRY","USD", "EUR"]:
             raise ValueError("Geçersiz para birimi.")
         self.__currency = currency
+    
     #bakiye'yi döndürür -getter-
     def get_balance(self) -> float | None:
         return self.__balance
@@ -62,8 +70,10 @@ class PaymentMethod(ABC):
         if limit is None:
             self.__limit = None
             return
-        if not isinstance(limit, (int, float)) or limit < 0:
-                raise ValueError("limit negatif olamaz.")
+        if not isinstance(limit, (int, float)):
+            raise ValueError("limit sayı olmalıdır.")
+        if limit < 0:
+            raise ValueError("limit negatif olamaz.")
         self.__limit = float(limit)
     
     #öödeme yöntemiyle en fazla ne kadar ödenebilir
@@ -108,12 +118,13 @@ class PaymentMethod(ABC):
         if currency not in ["TRY", "USD","EUR"]:
             return False
         return True
+    
     #varsayılan para birimini döndürür
     @classmethod
     def varsayilan_currency(cls) -> str:
         return "TRY"
-    
-    def get_info(self) -> str: #kısa bilgi döndürür
+    #kısa bilgi döndürür
+    def get_info(self) -> str: 
         trip = self.__class__.__name__
         tutar = self.kullanilabilir_tutar()
         return f"{trip} | Kişi: {self.__owner} | Para Birimi: {self.__currency} | Kullanılabilir Tutar: {tutar}"

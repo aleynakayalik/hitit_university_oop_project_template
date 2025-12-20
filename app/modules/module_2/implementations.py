@@ -10,6 +10,7 @@ class CashPayment(PaymentMethod):#balance var limit yok
       def authorize(self, amount: float) -> bool: #Abstract method override
          if not self.tutar_gecerli_mi(amount): #girilen tutar geçerli mi diye bakıyoruz
             return False
+         
          bakiye = self.get_balance()
          if bakiye is None:
             return False
@@ -31,7 +32,8 @@ class CashPayment(PaymentMethod):#balance var limit yok
       def iade_yap(self, amount: float) -> bool: #Abstract method override
          if not self.tutar_gecerli_mi(amount):
             return False
-         yeni_bakiye = (self.get_balance() or 0) + amountself.set_balance(yeni_bakiye)
+         yeni_bakiye = (self.get_balance() or 0.0) + amount
+         self.set_balance(yeni_bakiye)
          return True
       
       #ödeme yöntemi nakit mi kontrolü
@@ -47,12 +49,12 @@ class CashPayment(PaymentMethod):#balance var limit yok
       
 class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
    
-   def __init__(self,owner: str,card_no: str,card_holder_name: str,expiry_date: str,cvv: str,limit: float,currency: str = None):
+   def __init__(self,owner: str,card_no: str,card_holder_name: str,expiry_date: str,cvv: str,limit: float,currency: str  |None = None):
       #para birimi verilmezse varsayılan kullanılır
       if currency is None:
           currency = self.varsayilan_currency()
          
-      super().__ini__(owner = owner, currency = currency, balance = None, limit = limit)
+      super().__init__(owner = owner, currency = currency, balance = None, limit = limit)
        
       #kredi kartına özeller
       self.__card_no = None
@@ -77,7 +79,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
          
          if not card_no.isdigit():
             raise ValueError("Kartt numarası sadece rakam içermeli.")
-         if len(card_no) < 12 and len(card_no) > 19:
+         if len(card_no) < 12 or len(card_no) > 19:
             raise ValueError("Kart numarası 12-19 haneli olmalıdır.")
          
          self.__card_no = card_no
@@ -89,7 +91,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
          if not isinstance(name, str):
             raise ValueError("Kart sahibinin adı metin olmalıdır.")
          
-         name= name.stript()
+         name= name.strip()
          if name =="":
             raise ValueError("Kart sahibinin adı boş olamaz.")
          if len(name) < 3 :
@@ -116,7 +118,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
          if not (1 <= int(ay) <= 12):
             raise ValueError("Ay 1 ile 12 arasında olmalıdır.")
          
-         self.__expiry_dare = expiry_date
+         self.__expiry_date = expiry_date
 
       #cvv
       def get_cvv(self) -> str:
@@ -151,8 +153,6 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
          if limit >= amount:
             return True
 
-         return False
-
       def odeme_yap(self, amount: float) -> bool:
          # Önce kontrol ediyor
          if not self.authorize(amount):
@@ -161,16 +161,14 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
          # Limitten düş
          yeni_limit = self.get_limit() - amount
          self.set_limit(yeni_limit)
-
          return True
 
       def iade_yap(self, amount: float) -> bool:
          if not self.tutar_gecerli_mi(amount):
             return False
 
-         yeni_limit = (self.get_limit() or 0) + amount
+         yeni_limit = (self.get_limit() or 0.0) + amount
          self.set_limit(yeni_limit)
-
          return True
 
       @staticmethod
@@ -179,7 +177,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
 
       @classmethod
       def odeme_tipi(cls) -> str:
-          return "Credit Card"
+          return "Kredi Kartı"
          
 
       def get_info(self) -> str:
@@ -195,7 +193,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
 
 class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
 
-   def __init__(self, owner: str, wallet_id: str, balance: float, aktif_mi: bool = True, currency: str = None):
+   def __init__(self, owner: str, wallet_id: str, balance: float, aktif_mi: bool = True, currency: str | None = None):
       if currency is None:
          currency = self.varsayilan_currency()
 
@@ -223,13 +221,13 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
          raise ValueError("wallet_id boşluk içeremez.")
 
       self.__wallet_id = wallet_id
-
+   
+   #cüzdan id yi maskeler
    def masked_wallet_id(self) -> str:
       if len(self.__wallet_id) <= 4:
          return "****"
       return "*" * (len(self.__wallet_id) - 4) + self.__wallet_id[-4:]
 
-    # --- AKTIF MI ---
    def get_aktif_mi(self) -> bool:
       return self.__aktif_mi
 
@@ -238,23 +236,19 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
          raise ValueError("aktif_mi True veya False olmalıdır.")
       self.__aktif_mi = aktif_mi
 
-    # --- PAYMENT LOGIC ---
    def authorize(self, amount: float) -> bool:
-        # 0) Cüzdan aktif mi?
-      if not self.__aktif_mi:
+      
+      if not self.__aktif_mi: #Cüzdan aktif mi?
          return False
 
-        # 1) Tutar geçerli mi?
-      if not self.tutar_gecerli_mi(amount):
+      if not self.tutar_gecerli_mi(amount): #Tutar geçerli mi?
          return False
 
-        # 2) Bakiye var mı?
       bakiye = self.get_balance()
-      if bakiye is None:
+      if bakiye is None: #Bakiye var mı?
          return False
 
-        # 3) Bakiye yetiyor mu?
-      if bakiye >= amount:
+      if bakiye >= amount: #Bakiye yetiyor mu?
          return True
 
       return False
@@ -297,9 +291,487 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
             f"Para Birimi: {self.get_currency()} | Bakiye: {self.kullanilabilir_tutar():.2f}"
         )
 
+#Yemekhane menüsündeki tek bir ürünü temsil eden entity sınıfı
+class MenuItem:
+   def __init__(self, id: int, name: str, price: float, category: str,is_avaible: bool = True,tags: list[str] | None = None):
+      self.__id = None
+      self.__name = None
+      self.__price = None
+      self.__category = None
+      self.__is_available = None
+      self.__tags = None
 
+      self.set_id(id)
+      self.set_name(name)
+      self.set_price(price)
+      self.set_category(category)
+      self.set_is_available(is_available)
+      self.set_tags(tags)
 
+   #Ürün id bilgisini döndürür
+   def get_id(self) -> int:
+      return self.__id
+   #Ürün id bilgisini ayarlar
+   def set_id(self, id: int) -> None:
+      if not isinstance(id, int) or id <= 0:
+         raise ValueError("MenuItem id pozitif bir tamsayı olmalıdır.")
+      self.__id = id
 
+   #Ürün adını döndürür
+   def get_name(self) -> str:
+      return self.__name
+   #Ürün adını ayarlar
+   def set_name(self, name: str) -> None:
+      if not isinstance(name, str):
+         raise ValueError("Ürün adı metin olmalıdır.")
+      name = name.strip()
+      if len(name) < 2:
+         raise ValueError("Ürün adı en az 2 karakter olmalıdır.")
+      self.__name = name
+
+   #Ürün fiyatını döndürür
+   def get_price(self) -> float:
+      return self.__price
+   #Ürün fiyatını ayarlar
+   def set_price(self, price: float) -> None:
+      if not isinstance(price, (int, float)):
+         raise ValueError("Ürün fiyatı sayısal olmalıdır.")
+      price = float(price)
+      if price <= 0:
+         raise ValueError("Ürün fiyatı 0'dan büyük olmalıdır.")
+      self.__price = price
+
+   #Ürün kategorisini döndürür
+   def get_category(self) -> str:
+      return self.__category
+   #Ürün kategorisini ayarlar
+   def set_category(self, category: str) -> None:
+      if not isinstance(category, str):
+         raise ValueError("Kategori metin olmalıdır.")
+      category = category.strip()
+      if len(category) < 3:
+         raise ValueError("Kategori en az 3 karakter olmalıdır.")
+      self.__category = category
+
+   #Ürünün menüde aktif olup olmadığını döndürür
+   def get_is_available(self) -> bool:
+      return self.__is_available
+   #Ürünün menüde aktif olup olmadığını ayarlar
+   def set_is_available(self, is_available: bool) -> None:
+      if not isinstance(is_available, bool):
+         raise ValueError("is_available True veya False olmalıdır.")
+      self.__is_available = is_available
+
+   #Ürün etiketlerini döndürür
+   def get_tags(self) -> list[str]:
+      return list(self.__tags)
+   #Ürün etiketlerini ayarlar
+   def set_tags(self, tags: list[str] | None) -> None:
+      if tags is None:
+         self.__tags = []
+         return
+   
+      if not isinstance(tags, list):
+         raise ValueError("tags bir liste olmalıdır.")
+      
+      temiz_tags = []
+      for tag in tags:
+         if not isinstance(tag, str):
+            raise ValueError("tags listesi sadece metin içermelidir.")
+         tag = tag.strip()
+         if tag != "":
+            temiz_tags.append(tag.lower())
+
+         self.__tags = temiz_tags
+
+      #ürün bilgisini yazdırır
+      def get_info(self) -> str:
+         durum = "var" if self.__is_available else "yok"
+         tags_txt = ",".join(self.__tags) if self.__tags else "-"
+         return (
+            f"MenuItem(id={self.__id}, "
+            f"name='{self.__name}', "
+            f"price={self.__price:.2f}, "
+            f"category='{self.__category}', "
+            f"available={durum}, "
+            f"tags=[{tags_txt}])"
+        )
+      
+      #Fiyatın geçerli olup olmadığını kontrol eder
+      @staticmethod
+      def fiyat_gecerli_mi(price: float) -> bool:
+         return isinstance(price, (int, float)) and float(price) > 0
+   
+      #Örnek bir menü ürünü döndürür
+      @classmethod
+      def ornek_urun(cls) -> "MenuItem":
+         return cls(
+            id=1,
+            name="Hamburger",
+            price=20.0,
+            category="Main",
+            is_available=True,
+            tags=["fast-food", "et"]
+        )
+      
+
+from datetime import datetime
+
+#Kullanıcının oluşturduğu siparişi temsil eden entity sınıfı
+class Order:
+   def __init__(self, id: int, owner: str, items: list[MenuItem], currency: str = "TRY",
+                created_at : datetime | None = None, status: str = "SİPARİŞ OLUŞTURULDU",
+                notes: str = "", discount_rate: float = 0.0,paid_amount: float =0.0):
+      
+      self.__id = None
+      self.__owner = None
+      self.__items = None
+      self.__currency = None
+      self.__created_at = None
+      self.__status = None
+      self.__notes = None
+      self.__discount_rate = None
+      self.__paid_amount = None
+
+      self.set_id(id)
+      self.set_owner(owner)
+      self.set_items(items)
+      self.set_currency(currency)
+      self.set_created_at(created_at)
+      self.set_status(status)
+      self.set_notes(notes)
+      self.set_discount_rate(discount_rate)
+      self.set_paid_amount(paid_amount)
+
+   #Sipariş id bilgisini döndürür
+   def get_id(self) -> int:
+      return self.__id
+   #Sipariş id bilgisini ayarlar
+   def set_id(self, id: int) -> None:
+      if not isinstance(id, int) or id <= 0:
+         raise ValueError("Order id pozitif bir tamsayı olmalıdır.")
+      self.__id = id
+
+   #Siparişi veren kullanıcıyı döndürür
+   def get_owner(self) -> str:
+      return self.__owner
+   #Siparişi veren kullanıcıyı ayarlar
+   def set_owner(self, owner: str) -> None:
+      if not isinstance(owner, str):
+         raise ValueError("owner metin olmalıdır.")
+      owner = owner.strip()
+      if owner == "":
+         raise ValueError("owner boş olamaz.")
+      if len(owner) < 2:
+         raise ValueError("owner çok kısa.")
+      self.__owner = owner
+
+   #Siparişteki ürün listesini döndürür
+   def get_items(self) -> list[MenuItem]:
+      return list(self.__items)
+   #Siparişteki ürün listesini ayarlar
+   def set_items(self, items: list[MenuItem]) -> None:
+      if not isinstance(items, list):
+         raise ValueError("items bir liste olmalıdır.")
+      if len(items) == 0:
+         raise ValueError("Sipariş boş olamaz (en az 1 ürün olmalı).")
+
+      kontrol_listesi = []
+      for item in items:
+         if not isinstance(item, MenuItem):
+               raise ValueError("items listesi sadece MenuItem içermelidir.")
+         kontrol_listesi.append(item)
+
+      self.__items = kontrol_listesi
+
+   #Siparişin para birimini döndürür
+   def get_currency(self) -> str:
+      return self.__currency
+   #Siparişin para birimini ayarlar
+   def set_currency(self, currency: str) -> None:
+      if not isinstance(currency, str):
+         raise ValueError("currency metin olmalıdır.")
+      currency = currency.strip().upper()
+      if currency == "":
+         raise ValueError("currency boş olamaz.")
+      self.__currency = currency
+
+   #Sipariş oluşturulma tarihini döndürür
+   def get_created_at(self) -> datetime:
+      return self.__created_at
+   #Sipariş oluşturulma tarihini ayarlar (verilmezse şimdiki zaman)
+   def set_created_at(self, created_at: datetime | None) -> None:
+      if created_at is None:
+         self.__created_at = datetime.now()
+         return
+      if not isinstance(created_at, datetime):
+         raise ValueError("created_at datetime olmalıdır.")
+      self.__created_at = created_at
+
+   #Sipariş durumunu döndürür
+   def get_status(self) -> str:
+      return self.__status
+   #Sipariş durumunu ayarlar
+   def set_status(self, status: str) -> None:
+      if not isinstance(status, str):
+         raise ValueError("status metin olmalıdır.")
+      status = status.strip().upper()
+      if status == "":
+         raise ValueError("status boş olamaz.")
+      self.__status = status
+
+   #Sipariş notunu döndürür
+   def get_notes(self) -> str:
+      return self.__notes
+   #Sipariş notunu ayarlar
+   def set_notes(self, notes: str) -> None:
+      if not isinstance(notes, str):
+         raise ValueError("notes metin olmalıdır.")
+      self.__notes = notes.strip()
+
+   #Sipariş indirimi oranını döndürür
+   def get_discount_rate(self) -> float:
+      return self.__discount_rate
+   #Sipariş indirimi oranını ayarlar
+   def set_discount_rate(self, discount_rate: float) -> None:
+      if not isinstance(discount_rate, (int, float)):
+         raise ValueError("discount_rate sayısal olmalıdır.")
+      discount_rate = float(discount_rate)
+      if discount_rate < 0 or discount_rate > 0.8:
+         raise ValueError("discount_rate 0 ile 0.8 arasında olmalıdır.")
+      self.__discount_rate = discount_rate
+
+   #Sipariş için ödenen tutarı döndürür
+   def get_paid_amount(self) -> float:
+      return self.__paid_amount
+   #Sipariş için ödenen tutarı ayarlar
+   def set_paid_amount(self, paid_amount: float) -> None:
+      if not isinstance(paid_amount, (int, float)):
+         raise ValueError("paid_amount sayısal olmalıdır.")
+      paid_amount = float(paid_amount)
+      if paid_amount < 0:
+         raise ValueError("paid_amount negatif olamaz.")
+      self.__paid_amount = paid_amount
+
+   #Sipariş toplam tutarını (indirimsiz) hesaplar
+   def toplam_tutar(self) -> float:
+      toplam = 0.0
+      for item in self.__items:
+         toplam += item.get_price()
+      return toplam
+
+   #Sipariş indirim tutarını hesaplar
+   def indirim_tutari(self) -> float:
+      return self.toplam_tutar() * self.__discount_rate
+
+   #Siparişin ödenmesi gereken tutarını hesaplar
+   def odenecek_tutar(self) -> float:
+      return self.toplam_tutar() - self.indirim_tutari()
+
+   #Siparişe ürün ekler
+   def urun_ekle(self, item: MenuItem) -> None:
+      if not isinstance(item, MenuItem):
+         raise ValueError("Eklenecek ürün MenuItem olmalıdır.")
+      self.__items.append(item)
+
+   #Siparişten ürün çıkarır (id ile)
+   def urun_cikar(self, item_id: int) -> bool:
+      if not isinstance(item_id, int) or item_id <= 0:
+         raise ValueError("item_id pozitif integer olmalıdır.")
+
+      for i in range(len(self.__items)):
+         if self.__items[i].get_id() == item_id:
+               self.__items.pop(i)
+               return True
+      return False
+
+   #Siparişte belirli bir ürün var mı kontrol eder
+   def contains_item(self, item_id: int) -> bool:
+      if not isinstance(item_id, int) or item_id <= 0:
+         return False
+      for item in self.__items:
+         if item.get_id() == item_id:
+               return True
+      return False
+
+   #Siparişin kısa bilgisini döndürür
+   def get_info(self) -> str:
+      return(
+            f"Order(id={self.__id}, owner='{self.__owner}', status={self.__status}, "
+            f"item_count={len(self.__items)}, total={self.toplam_tutar():.2f}, "
+            f"discount={self.__discount_rate:.2f}, payable={self.odenecek_tutar():.2f}, "
+            f"paid={self.__paid_amount:.2f} {self.__currency}, created_at={self.__created_at})"
+      )
+   
+   #Sipariş id geçerli mi kontrol eder
+   @staticmethod
+   def id_gecerli_mi(order_id: int) -> bool:
+      return isinstance(order_id, int) and order_id > 0
+
+   #Demo için örnek sipariş döndürür
+   @classmethod
+   def ornek_siparis(cls, owner: str) -> "Order":
+      return cls(
+            id=1,
+            owner=owner,
+            items=[MenuItem.ornek_urun()],
+            currency="TRY",
+            status="SİPARİŞ OLUŞTURULDU",
+            notes="Acısız olsun",
+            discount_rate=0.10,
+            paid_amount=0.0
+      )
+
+from datetime import datetime
+
+#Yapılan ödeme işlemini kayıt altına alan entity sınıfı
+class PaymentTransaction:
+   
+   #Ödeme işlemi kaydı oluşturur
+   def __init__(self,id: int,owner: str,order_id: int,amount: float,currency: str,status: str,method_type: str,
+        failure_reason: str = "",created_at: datetime | None = None):
+        self.__id = None
+        self.__owner = None
+        self.__order_id = None
+        self.__amount = None
+        self.__currency = None
+        self.__status = None
+        self.__method_type = None
+        self.__failure_reason = None
+        self.__created_at = None
+
+        self.set_id(id)
+        self.set_owner(owner)
+        self.set_order_id(order_id)
+        self.set_amount(amount)
+        self.set_currency(currency)
+        self.set_status(status)
+        self.set_method_type(method_type)
+        self.set_failure_reason(failure_reason)
+        self.set_created_at(created_at)
+
+   #İşlem id bilgisini döndürür
+   def get_id(self) -> int:
+      return self.__id
+   #İşlem id bilgisini ayarlar
+   def set_id(self, id: int) -> None:
+      if not isinstance(id, int) or id <= 0:
+         raise ValueError("Transaction id pozitif bir integer olmalıdır.")
+      self.__id = id
+
+   #İşlemi yapan kullanıcıyı döndürür
+   def get_owner(self) -> str:
+      return self.__owner
+   #İşlemi yapan kullanıcıyı ayarlar
+   def set_owner(self, owner: str) -> None:
+      if not isinstance(owner, str):
+         raise ValueError("owner metin olmalıdır.")
+      owner = owner.strip()
+      if owner == "":
+         raise ValueError("owner boş olamaz.")
+      self.__owner = owner
+
+   #İlgili sipariş id'sini döndürür
+   def get_order_id(self) -> int:
+      return self.__order_id
+   #İlgili sipariş id'sini ayarlar
+   def set_order_id(self, order_id: int) -> None:
+      if not isinstance(order_id, int) or order_id <= 0:
+         raise ValueError("order_id pozitif bir integer olmalıdır.")
+      self.__order_id = order_id
+      
+   #Ödenen tutarı döndürür
+   def get_amount(self) -> float:
+      return self.__amount
+   #Ödenen tutarı ayarlar
+   def set_amount(self, amount: float) -> None:
+      if not isinstance(amount, (int, float)):
+         raise ValueError("amount sayısal olmalıdır.")
+      amount = float(amount)
+      if amount <= 0:
+         raise ValueError("amount 0'dan büyük olmalıdır.")
+      self.__amount = amount
+
+   #Para birimini döndürür
+   def get_currency(self) -> str:
+      return self.__currency
+   #Para birimini ayarlar
+   def set_currency(self, currency: str) -> None:
+      if not isinstance(currency, str):
+         raise ValueError("currency metin olmalıdır.")
+      currency = currency.strip().upper()
+      if currency == "":
+         raise ValueError("currency boş olamaz.")
+      self.__currency = currency
+
+   #İşlem durumunu döndürür
+   def get_status(self) -> str:
+      return self.__status
+   #İşlem durumunu ayarlar (SUCCESS/FAILED)
+   def set_status(self, status: str) -> None:
+      if not isinstance(status, str):
+         raise ValueError("status metin olmalıdır.")
+      status = status.strip().upper()
+      if status not in {"BAŞARILI", "BAŞARISIZ"}:
+         raise ValueError("status 'BAŞARILI' veya 'BAŞARISIZ' olmalıdır.")
+      self.__status = status
+
+   #Kullanılan ödeme yöntemi tipini döndürür
+   def get_method_type(self) -> str:
+      return self.__method_type
+   #Kullanılan ödeme yöntemi tipini ayarlar
+   def set_method_type(self, method_type: str) -> None:
+      if not isinstance(method_type, str):
+         raise ValueError("method_type metin olmalıdır.")
+      method_type = method_type.strip()
+      if method_type == "":
+         raise ValueError("method_type boş olamaz.")
+      self.__method_type = method_type
+
+   #Başarısızlık sebebini döndürür
+   def get_failure_reason(self) -> str:
+      return self.__failure_reason
+   #Başarısızlık sebebini ayarlar (başarılıysa boş olabilir)
+   def set_failure_reason(self, reason: str) -> None:
+      if not isinstance(reason, str):
+         raise ValueError("failure_reason metin olmalıdır.")
+      self.__failure_reason = reason.strip()
+
+   #İşlem zamanını döndürür
+   def get_created_at(self) -> datetime:
+      return self.__created_at
+
+   #İşlem zamanını ayarlar (verilmezse şimdiki zaman)
+   def set_created_at(self, created_at: datetime | None) -> None:
+      if created_at is None:
+         self.__created_at = datetime.now()
+         return
+      if not isinstance(created_at, datetime):
+         raise ValueError("created_at datetime olmalıdır.")
+      self.__created_at = created_at
+
+   #İşlemin başarılı olup olmadığını döndürür
+   def basarili_mi(self) -> bool:
+      return self.__status == "BAŞARILI"
+   #İşlemin kısa bilgisini döndürür
+   def get_info(self) -> str:
+      sebep = "-" if self.__failure_reason == "" else self.__failure_reason
+      return (
+            f"PaymentTransaction(id={self.__id}, owner='{self.__owner}', order_id={self.__order_id}, "
+            f"amount={self.__amount:.2f} {self.__currency}, status={self.__status}, "
+            f"method_type='{self.__method_type}', reason='{sebep}', created_at={self.__created_at})"
+      )
+
+   #Transaction id geçerli mi kontrol eder
+   @staticmethod
+   def id_gecerli_mi(tx_id: int) -> bool:
+      return isinstance(tx_id, int) and tx_id > 0
+   #Başarılı bir ödeme işlemi oluşturur
+   @classmethod
+   def basarili_islem(cls,id: int, owner: str, order_id: int, amount: float,
+                      currency: str, method_type: str) -> "PaymentTransaction":
+    return cls(id=id, owner=owner, order_id=order_id, amount=amount, currency=currency,
+               status="BAŞARILI", method_type=method_type, failure_reason="")
 
  
 
@@ -307,43 +779,6 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
    
 
    
-         
-"""
-class OdemeYonetimi:
-    def __init__(self):
-        self.islem_gecmisi = []  # işlem kayıtlarını tutar
-
-    def odeme_yap(self, odeme_yontemi, tutar: float) -> bool:
-        if tutar <= 0:
-            print("[Servis] Geçersiz ödeme tutarı.")
-            return False
-
-        #Ödeme işlemini başlatıyor (yetkilendirme + ödeme subclass içinde)
-        sonuc = odeme_yontemi.odeme_yap(tutar) #polimorfizim örneği ödeme yönteminin türünden bağımsız olarak odeme_yap metodunu çağırmak
-
-        #İşlem kaydı oluşturma (base class'tan)
-        kayit = odeme_yontemi.islem_kaydi(
-            tutar=tutar,
-            sonuc=sonuc,
-            aciklama="Servis üzerinden ödeme denemesi"
-        )
-
-        #Kayıtları saklamak için
-        self.islem_gecmisi.append(kayit)
-
-        if sonuc:
-            print("[Servis] Ödeme başarıyla tamamlandı.")
-        else:
-            print("[Servis] Ödeme başarısız.")
-
-        return sonuc
-
-    def islem_gecmisini_listele(self):
-        return self.islem_gecmisi
-    
-"""
-class YemekhaneServisi:
-   pass
 
 
     
