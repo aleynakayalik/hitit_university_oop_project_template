@@ -12,7 +12,7 @@ class PaymentMethod(ABC):
         self.set_currency(currency)
 
         #ikisi aynı anda doluysa karışmasın diye
-        if balance is not None and limt is not None:
+        if balance is not None and limit is not None:
             raise ValueError("Aynı anda hem balance hem limit verilemez.")
              
         self.set_balance(balance)

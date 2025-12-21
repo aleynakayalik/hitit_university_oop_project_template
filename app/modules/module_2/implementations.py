@@ -65,7 +65,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
       #setterlar ile doğrulayarak atama
       self.set_card_no(card_no)
       self.set_card_holder_name(card_holder_name)
-      self.set_expiry_date(expiry_date)
+      self.set_expiry_date(expiry_date)   
       self.set_cvv(cvv)
 
       #kart numarası
@@ -204,10 +204,10 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
 
       self.set_wallet_id(wallet_id)
       self.set_aktif_mi(aktif_mi)
-
+   #Cüzdan id bilgisini döndürür -getter-
    def get_wallet_id(self) -> str:
       return self.__wallet_id
-
+   #Cüzdan id bilgisini ayarlar -setter-
    def set_wallet_id(self, wallet_id: str) -> None:
       if not isinstance(wallet_id, str):
          raise ValueError("wallet_id metin olmalıdır.")
@@ -227,10 +227,9 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
       if len(self.__wallet_id) <= 4:
          return "****"
       return "*" * (len(self.__wallet_id) - 4) + self.__wallet_id[-4:]
-
+   #cüzdan aktif mi bilgisini döndürür
    def get_aktif_mi(self) -> bool:
       return self.__aktif_mi
-
    def set_aktif_mi(self, aktif_mi: bool) -> None:
       if not isinstance(aktif_mi, bool):
          raise ValueError("aktif_mi True veya False olmalıdır.")
@@ -293,20 +292,23 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
 
 #Yemekhane menüsündeki tek bir ürünü temsil eden entity sınıfı
 class MenuItem:
-   def __init__(self, id: int, name: str, price: float, category: str,is_avaible: bool = True,tags: list[str] | None = None):
+   def __init__(self, id: int, name: str, price: float, category: str,is_avaible: bool = True,
+                tags: list[str] | None = None, available_days: list[int] | None = None):
       self.__id = None
       self.__name = None
       self.__price = None
       self.__category = None
       self.__is_available = None
       self.__tags = None
+      self.__available_days = None
 
       self.set_id(id)
       self.set_name(name)
       self.set_price(price)
       self.set_category(category)
-      self.set_is_available(is_available)
+      self.set_is_available(is_avaible)
       self.set_tags(tags)
+      self.set_available_days(available_days)
 
    #Ürün id bilgisini döndürür
    def get_id(self) -> int:
@@ -384,36 +386,65 @@ class MenuItem:
 
          self.__tags = temiz_tags
 
-      #ürün bilgisini yazdırır
-      def get_info(self) -> str:
-         durum = "var" if self.__is_available else "yok"
-         tags_txt = ",".join(self.__tags) if self.__tags else "-"
-         return (
+   #Ürünün servis edleceği günleri döndürür (1=Pzt,2=Salı,...,5=Cuma)
+   def get_available_days(self) -> list[int]:
+      return list(self.__available_days)
+   #Ürünün servis edileceği günleri ayarlar (1-5 arası int liste)
+   def set_available_days(self, available_days: list[int] | None) -> None:
+      if available_days is None:
+         available_days = [1, 2, 3, 4, 5]
+
+      if (not isinstance(available_days, list)
+        or not all(isinstance(d, int) for d in available_days)
+        or any(d < 1 or d > 5 for d in available_days)):
+         raise ValueError("available_days 1-5 arasında int liste olmalı.")
+
+   
+      self.__available_days = sorted(set(available_days))
+
+   #Bu ürün verilen günde menüde var mı kontrol eder
+   def gununde_var_mi(self, day: int) -> bool:
+      return isinstance(day, int) and day in self.__available_days
+   
+   #Ürün bilgisini yazdırır
+   def get_info(self) -> str:
+       durum = "var" if self.__is_available else "yok"
+       tags_txt = ",".join(self.__tags) if self.__tags else "-"
+       gunler_txt = ",".join(str(d) for d in self.__available_days) if self.__available_days else "-"
+       return (
             f"MenuItem(id={self.__id}, "
             f"name='{self.__name}', "
             f"price={self.__price:.2f}, "
             f"category='{self.__category}', "
             f"available={durum}, "
+            f"available_days=[{gunler_txt}], "
             f"tags=[{tags_txt}])"
         )
-      
-      #Fiyatın geçerli olup olmadığını kontrol eder
-      @staticmethod
-      def fiyat_gecerli_mi(price: float) -> bool:
-         return isinstance(price, (int, float)) and float(price) > 0
+
+   #Fiyatın geçerli olup olmadığını kontrol eder
+   @staticmethod
+   def fiyat_gecerli_mi(price: float) -> bool:
+      return isinstance(price, (int, float)) and float(price) > 0
    
-      #Örnek bir menü ürünü döndürür
-      @classmethod
-      def ornek_urun(cls) -> "MenuItem":
-         return cls(
+   #Gün numarasını gün adına çevirir (1=Pzt ... 5=Cuma)
+   @staticmethod
+   def gun_adi(day: int) -> str:
+      gunler= {1: "Pazartesi", 2: "Salı", 3: "Çarşamba", 4: "Perşembe", 5: "Cuma"}
+      return gunler.get(day, "Geçersiz Gün")
+   
+   
+   #Örnek bir menü ürünü döndürür
+   @classmethod
+   def ornek_urun(cls) -> "MenuItem":
+      return cls(
             id=1,
             name="Hamburger",
-            price=20.0,
+            price=10.0,
             category="Main",
             is_available=True,
-            tags=["fast-food", "et"]
+            tags=["fast-food", "et"],
+            available_days=[1, 3, 5]
         )
-      
 
 from datetime import datetime
 
@@ -618,7 +649,7 @@ class Order:
             currency="TRY",
             status="SİPARİŞ OLUŞTURULDU",
             notes="Acısız olsun",
-            discount_rate=0.10,
+            discount_rate=0.20,
             paid_amount=0.0
       )
 
@@ -707,7 +738,7 @@ class PaymentTransaction:
    #İşlem durumunu döndürür
    def get_status(self) -> str:
       return self.__status
-   #İşlem durumunu ayarlar (SUCCESS/FAILED)
+   #İşlem durumunu ayarlar (BAŞARILI/BAŞARISIZ)
    def set_status(self, status: str) -> None:
       if not isinstance(status, str):
          raise ValueError("status metin olmalıdır.")
