@@ -1165,5 +1165,4 @@ class CafeteriaService:
          return [t for t in txs if getattr(t, "status", "") in {"BASARILI", "SUCCESS", "OK"}]
  
  
- #github pushlamada hata verdi tekrar deneme
  
