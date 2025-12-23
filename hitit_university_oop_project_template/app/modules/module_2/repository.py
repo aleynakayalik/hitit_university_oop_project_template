@@ -1,6 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 #Kullanıcıların ödeme yöntemlerini veritabenı varmış gibi RAM de saklar
 class InMemoryPaymentRepository:
@@ -94,7 +93,7 @@ class InMemoryPaymentRepository:
 class InMemoryTransactionRepository:
 
     def __init__(self) -> None:
-        self.__islemler: dict[int, any] = {}
+        self.__islemler: dict[int,Any] = {}
         self.__siradaki_id: int = 1   # otomatik id vermek için sayaç
 
     #işlem sahini döndürür
@@ -154,7 +153,7 @@ class InMemoryTransactionRepository:
                 sonuc.append(islem)
 
         return sonuc
-    #İşlem durumuna(BASARILI / BASARISIZ9 göre filtreleme yapar.
+    #İşlem durumuna(BASARILI / BASARISIZ göre filtreleme yapar.
     def duruma_gore_listele(self, durum: str) -> list:
       
         if not isinstance(durum, str) or durum.strip() == "":
@@ -170,25 +169,24 @@ class InMemoryTransactionRepository:
         return sonuc
              
 
-#Yemekhane menüsündeki ürünleri bellekte tutar.
-# Ürünlerin hangi günlerde çıkacağını (1-5)
+
+# Yemekhane menüsündeki ürünleri bellekte tutar.
+# Ürünlerin hangi günlerde çıkacağını (1-5) destekler.
 class InMemoryMenuRepository:
     def __init__(self) -> None:
-     
-        self.__urunler: dict[int, any] = {}
-        self.__siradaki_id: int = 1   # otomatik id için sayaç
+        self.__urunler: dict[int, object] = {}
+        self.__siradaki_id: int = 1  # otomatik id için sayaç
 
-    #Ürün aktif mi kontrolü.
+    # Ürün aktif mi kontrolü.
     def __aktif_mi(self, urun) -> bool:
-    
         deger = getattr(urun, "available", None)
         if deger is None:
             deger = getattr(urun, "aktif_mi", None)
+
         return bool(deger) if isinstance(deger, bool) else False
 
-    #Menü ürününü repository'e ekler.
+    # Menü ürününü repository'e ekler.
     def ekle(self, menu_urunu) -> int:
-       
         if menu_urunu is None:
             raise ValueError("Menü ürünü boş olamaz.")
 
@@ -211,31 +209,31 @@ class InMemoryMenuRepository:
 
         self.__urunler[urun_id] = menu_urunu
         return urun_id
-    
-    #ID ile menü ürününü bulur. Yoksa None döner.
+
+    # ID ile menü ürününü bulur. Yoksa None döner.
     def id_ile_getir(self, id: int):
-        
         if not isinstance(id, int) or id <= 0:
             raise ValueError("id pozitif int olmalıdır.")
         return self.__urunler.get(id)
 
-    #Menüdeki tüm ürünleri döndürür.
+    # Menüdeki tüm ürünleri döndürür.
     def tumunu_listele(self) -> list:
-        
         return list(self.__urunler.values())
-    
-    #Sadece aktif olan ürünleri döndürür.
+
+    # Sadece aktif olan ürünleri döndürür.
     def aktifleri_listele(self) -> list:
-        
         sonuc = []
         for urun in self.__urunler.values():
             if self.__aktif_mi(urun):
                 sonuc.append(urun)
         return sonuc
 
-    #Kategoriye göre filtreler (örn: 'ana yemek', 'içecek').
+    # Tek fonksiyonla listeleme isteyen servisler için 
+    def listele(self, sadece_aktif: bool = True) -> list:
+        return self.aktifleri_listele() if sadece_aktif else self.tumunu_listele()
+
+    # Kategoriye göre filtreler (örn: 'ana yemek', 'içecek').
     def kategoriye_gore_listele(self, kategori: str) -> list:
-        
         if not isinstance(kategori, str) or kategori.strip() == "":
             raise ValueError("Kategori boş olamaz.")
 
@@ -248,25 +246,23 @@ class InMemoryMenuRepository:
                 sonuc.append(urun)
 
         return sonuc
-    
 
-    #Haftanın gününe göre ürünleri döndürür.
+    # Haftanın gününe göre ürünleri döndürür.
     def gune_gore_listele(self, gun: int, sadece_aktif: bool = True) -> list:
-      
         if not isinstance(gun, int) or gun < 1 or gun > 5:
             raise ValueError("Gün 1-5 arasında olmalıdır.")
 
         sonuc = []
 
         for urun in self.__urunler.values():
-            #available_days listesi var mı?
+            # available_days listesi var mı?
             gunler = getattr(urun, "available_days", None)
 
             eslesti = False
             if isinstance(gunler, list) and all(isinstance(d, int) for d in gunler):
                 eslesti = gun in gunler
             else:
-                #tek gün alanı (day / available_day)
+                # tek gün alanı (day / available_day)
                 tek_gun = getattr(urun, "day", None)
                 if tek_gun is None:
                     tek_gun = getattr(urun, "available_day", None)
