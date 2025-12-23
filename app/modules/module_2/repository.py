@@ -1,409 +1,285 @@
-class MenuRepository:
-    def __init__(self):
-        self.menu_urunleri = [] #MenuUrunu listesi
 
-#urunleri ekleme veya okuma
-    def urun_ekle(self, urun) -> None:
-        self.menu_urunleri.append(urun)
-    
-    def tum_urunleri_getir(self):
-        return list(self.menu_urunleri)
-    
-    def urun_sayisi(self) -> int:
-        return len(self.menu_urunleri)
-    
-    def menu_bos_mu(self) -> bool:
-        return len(self.menu_urunleri) == 0
+from __future__ import annotations
+from typing import Any, Dict
 
-    def menu_dolu_mu(self) -> bool:
-        return len(self.menu_urunleri) > 0
-    
-#urun arama, kontrol etme  
-    def urun_id_ile_getir(self, urun_adi: int):
-        for urun in self.menu_urunleri:
-            if urun.urun_id == urun_id:
-                return urun
-        return None
-    #Menüde verilen ID'ye sahip bir ürün olup olmadığını kontrol eder
-    def urun_var_mi(self, urun_id: int) -> bool:
-        if urun_id is not None:
-            print("[MenuPerository] Urun ID boş olamaz.")
+#Kullanıcıların ödeme yöntemlerini veritabenı varmış gibi RAM de saklar
+class InMemoryPaymentRepository:
+    def __init__(self) -> None:
+        self.__odeme_yontemleri: Dict[int, Any] = {}
+        self.__siradaki_id: int = 1  #repo otomatik id versin diye sayaç
 
-        if urun_id <= 0:
-            print("[MenuRepository] Urun ID 0 veya negatif olamaz.")
-            return False
-        
-        urun = self.urun_id_ile_getir(urun_id)
-
-        if urun is not None:
-            print(f"[MenuRepository] Ürün bulunamadı:( ID: {urun_adi}")
-            return True
-        else:
-            print(f"[MenuRepository] Ürün bulundu :) ID: {urun_adi}")
-            return False
-    #büyük kücük harf fark etmeden urunun adı listede var mı diye kontrol eder   
-    def urun_adi_var_mi(self, ad: str) -> bool:
-        if not ad:
-            return False
-        aranan_ad =ad.strip().lower()
-
-        for urun in self.menu_urunleri:
-            if urun.ad.strip().lower() == aranan_ad:
-                return False
-        return False
-#urun guncelleme veya silme
-    def urun_guncelle(self, urun_id: int, yeni_ad: str= None, yeni_fiyat: float = None) -> bool:  #urun adı ve fiyatu günceller
-        
-        urun = self.urun_id_ile_getir(urun_id)
-        if not urun:
-            return False
-        if yeni_ad is not None:
-            urun_ad = yeni_ad
-        if yeni_fiyat is not None:
-            if yeni_fiyat < 0:
-                return False
-            urun_fyat = yeni_fiyat
-        return True
-    
-    def urun_sil(self, urun_id: int) -> bool:
-
-        urun = self.urun_id_ie_getir(urun_id)
-        if urun is not None:
-            return False
-        self.menu_urunleri.remove(urun)
-        return True
-    
-#ürün filtreleme ve sıralama  
-    def fiyata_gore_getir(self, min_fiyat: float = 0, max_fiyat: float = None):
-
-        if min_fiyat is None:
-            min_fiyat = 0
-
-        if min_fiyat < 0:
-            print("[MenuRepository] min_fiyat negatif olamaz.")
-            return []
-        
-        if max_fiyat is not None and max_fiyat < 0:
-            print("[MenuRepository] min_fiyat, max_fiyattan büyük olamaz.")
-            return []
-        #fiyat aralığına uyan ürünleri tutmak için boş bir liste
-        sonuc = []
-
-        for urun in self.menu_urunleri:
-            fiyat = urun.fiyat
-
-            if max_fiyat is None:
-                if fiyat >= min_fiyat:
-                    sonuc.append(urun)
-                else:
-                    if min_fiyat <= fiyat <= max_fiyat:
-                        sonuc.append(urun)
-
-        return sonuc
-    #alfabetik sıralı döndürür
-    def urunleri_ada_gore_sirala(self, ters_mi: bool = False):
-        if self.menu_bos_mu():
-            print("[MenuRepository] Menü Boş, sıralanacak ürün bulunamadı.")
-            return []
-        
-        def siralama_anahtari(u):
-            return (u.ad or "").sprit().lower()
-        
-        return sorted(self.menu_urunleri, key =siralama_anahtari, reverse = ters_mi)
-       
-#toplu işlemler
-    def toplu_urun_ekle(self, urun_listesi) -> int:
-
-        if not urun_listesi:
-            print("[MenuRepository] Eklenecek ürün listesi boş.")
-            return 0
-        
-        eklenen_sayisi = 0
-
-        for urun in urun_listesi:
-            if urun is None:
-                continue
-
-            if hasattr(urun, "urun_id") and self.urun_var_mi(urun.urun_adi): #hasattr: bu nesnenin böyle özelliği var mı diye sorar
-                print(f"[MenuRepository] Bu ID zaten var, eklenmedi: {urun_adi}")
-                continue
-
-            self.menu_urunleri.append(urun)
-            eklenen_sayisi += 1
-
-        return eklenen_sayisi
-
-
-from datetime import datetime
-
-class SiparisRepository:
-    
-    def __init__(self):
-        self.siparisler = []   # Siparis nesneleri veya dict olabilir
-        self._son_id = 0
-
-
-    def _yeni_id_uret(self) -> int: #Her yeni siparişe otomatik ID vermek için.
-        self._son_id += 1
-        return self._son_id
-
-
-    def siparis_ekle(self, siparis) -> int:
-        """
-        Yeni sipariş ekler.
-        - siparis nesnesine siparis_id atar
-        - siparisin tarihini yoksa atar
-        - eklenen siparişin ID'sini döndürür
-        """
-        if siparis is None:
-            print("[SiparisRepository] Boş sipariş eklenemez.")
-            return -1
-
-        # kişi bilgisi olmalı (bizim projede sipariş kime ait)
-        if not hasattr(siparis, "kisi"):
-            print("[SiparisRepository] Sipariş nesnesinde 'kisi' alanı yok.")
-            return -1
-
-        # id ver
-        siparis_id = self._yeni_id_uret()
-        siparis.siparis_id = siparis_id
-
-        # tarih yoksa ekle
-        if not hasattr(siparis, "tarih") or siparis.tarih is None:
-            siparis.tarih = datetime.now()
-
-        # durum yoksa default ver
-        if not hasattr(siparis, "durum") or siparis.durum is None:
-            siparis.durum = "olusturuldu"
-
-        self.siparisler.append(siparis)
-        print(f"[SiparisRepository] Sipariş eklendi. ID: {siparis_id} | Kişi: {siparis.kisi}")
-        return siparis_id
-
-    # ----------------- LİSTELEME -----------------
-
-    def tum_siparisleri_getir(self):
-        """
-        Tüm siparişleri döndürür
-        """
-        return list(self.siparisler)
-
-    def kisiye_gore_siparisleri_getir(self, kisi: str):
-        """
-        Belirli bir kişiye ait siparişleri döndürür
-        """
-        if kisi is None or len(kisi.strip()) == 0:
-            return []
-
-        kisi = kisi.strip()
-        return [s for s in self.siparisler if getattr(s, "kisi", None) == kisi]
-
-    def duruma_gore_siparisleri_getir(self, durum: str):
-        """
-        Siparişleri durumuna göre filtreler (olusturuldu/hazirlaniyor/teslim/iptal)
-        """
-        if durum is None or len(durum.strip()) == 0:
-            return []
-
-        durum = durum.strip().lower()
-        return [s for s in self.siparisler if str(getattr(s, "durum", "")).lower() == durum]
-
-    # ----------------- ARAMA -----------------
-
-    def id_ile_siparis_getir(self, siparis_id: int):
-        """
-        ID ile sipariş bulur. Bulamazsa None döner.
-        """
-        if siparis_id is None or siparis_id <= 0:
-            return None
-
-        for s in self.siparisler:
-            if getattr(s, "siparis_id", None) == siparis_id:
-                return s
-        return None
-
-    def siparis_var_mi(self, siparis_id: int) -> bool:
-        """
-        ID'ye göre sipariş var mı kontrol eder
-        """
-        return self.id_ile_siparis_getir(siparis_id) is not None
-
-    # ----------------- GÜNCELLEME -----------------
-
-    def siparis_durumu_guncelle(self, siparis_id: int, yeni_durum: str) -> bool:
-        """
-        Siparişin durumunu günceller.
-        Başarılıysa True, yoksa False
-        """
-        siparis = self.id_ile_siparis_getir(siparis_id)
-        if siparis is None:
-            print("[SiparisRepository] Sipariş bulunamadı.")
-            return False
-
-        if yeni_durum is None or len(yeni_durum.strip()) == 0:
-            print("[SiparisRepository] Yeni durum boş olamaz.")
-            return False
-
-        siparis.durum = yeni_durum.strip().lower()
-        print(f"[SiparisRepository] Sipariş durumu güncellendi. ID: {siparis_id} | Yeni Durum: {siparis.durum}")
-        return True
-
-    # ----------------- SİLME / İPTAL -----------------
-
-    def siparis_sil(self, siparis_id: int) -> bool:
-        """
-        Siparişi listeden tamamen siler (çok kullanılmaz ama opsiyonel).
-        """
-        siparis = self.id_ile_siparis_getir(siparis_id)
-        if siparis is None:
-            return False
-
-        self.siparisler.remove(siparis)
-        return True
-
-    def siparis_iptal_et(self, siparis_id: int) -> bool:
-        """
-        Siparişi silmek yerine iptal durumuna çeker (daha mantıklı).
-        """
-        return self.siparis_durumu_guncelle(siparis_id, "iptal")
-
-    # ----------------- RAPORLAMA (Opsiyonel ama artı puan) -----------------
-
-    def tarih_araligina_gore_getir(self, baslangic: datetime, bitis: datetime):
-        """
-        Belirli tarih aralığındaki siparişleri döndürür.
-        """
-        if baslangic is None or bitis is None:
-            return []
-
-        sonuc = []
-        for s in self.siparisler:
-            tarih = getattr(s, "tarih", None)
-            if tarih is None:
-                continue
-            if baslangic <= tarih <= bitis:
-                sonuc.append(s)
-
-        return sonuc
-
-    
-
-
-
-class OdemeYontemiRepository:
-    
-    def __init__(self):
-        self.odeme_yontemleri = [] # Tüm ödeme yöntemlerini burada tutuyoruz
-        
-        self._son_id = 0
-
-    def _yeni_id_uret(self) -> int:
-        self._son_id += 1
-        return self._son_id
-
-    def yontem_ekle(self, odeme_yontemi) -> int:
-        
+    #ödeme yönteminin sahibini bulur
+    def __odeme_sahibi(self, odeme_yontemi) -> str |  None:
         if odeme_yontemi is None:
-            print("[OdemeYontemiRepository] Boş ödeme yöntemi eklenemez.")
-            return -1
+            return None
+        #base classdaki get_owner()
+        get_owner = getattr(odeme_yontemi, "get_owner", None)
+        if callable(get_owner):
+            try:
+                sahip = get_owner()
+                if isinstance(sahip, str) and sahip.strip() != "":
+                    return sahip.strip()
+            except Exception:
+                pass
 
-        # Nesnenin üzerinde kişi bilgisi var mı? (yanlış nesne gelmesin)
-        if not hasattr(odeme_yontemi, "kisi"):
-            print("[OdemeYontemiRepository] Bu nesne ödeme yöntemi gibi görünmüyor (kisi yok).")
-            return -1
-
-        # ID veriyoruz
-        yeni_id = self._yeni_id_uret()
-        odeme_yontemi.yontem_id = yeni_id
-
-        # Listeye ekliyoruz
-        self.odeme_yontemleri.append(odeme_yontemi)
-
-        print(f"[OdemeYontemiRepository] Ödeme yöntemi eklendi. ID: {yeni_id} | Kişi: {odeme_yontemi.kisi}")
-        return yeni_id
-
-
-    def tum_yontemleri_listele(self):
-        return list(self.odeme_yontemleri)
-
-    def kisiye_gore_yontemleri_listele(self, kisi: str):
+        #direkt owner attribute u
+        sahip = getattr(odeme_yontemi, "owner", None)
+        if isinstance(sahip, str) and sahip.strip() != "":
+            return sahip.strip()
         
-        if kisi is None or len(kisi.strip()) == 0:
-            print("[OdemeYontemiRepository] Kişi bilgisi boş olamaz.")
-            return []
+        return None
+    #ödeme yönteminin idsini döndürür yoksa none
+    def __odeme_id(self, odeme_yontemi) -> int | None:
+        odeme_id = getattr(odeme_yontemi, "id", None)
+        if isinstance(odeme_id, int):
+            return odeme_id
+        return None
+    #ödeme yöntemini repositorye ekler
+    def ekle(self, odeme_yontemi) -> int:
+        if odeme_yontemi is None:
+            raise ValueError("ödeme yöntemi boş olamaz.")
+        
+        sahip = self.__odeme_sahibi(odeme_yontemi)
+        if sahip is None:
+            raise ValueError("ödeme yönteminin bir sahibi olmalıdır.")
+        
+        odeme_id = self.__odeme_id(odeme_yontemi)
 
-        kisi = kisi.strip()
+        #id yoksa otamatik ver
+        if odeme_id is None:
+            odeme_id = self.__siradaki_id
+            self.__siradaki_id += 1
+            try:
+                setattr(odeme_yontemi,"id", odeme_id)
+            except Exception:
+                pass
+        
+        if odeme_id <= 0:
+            raise ValueError("ödeme yöntemi id'si pozitif olmalıdır.")
+        
+        if odeme_id in self.__odeme_yontemleri:
+            raise ValueError("bu id ile kayıtlı bir ödeme yöntemi zaten var")
+        
+        self.__odeme_yontemleri[odeme_id] = odeme_yontemi
+        return odeme_id
+    
+    #sistemdeki tüm ödeme yöntemlerini döndürür
+    def tumunu_listele(self) -> list:
+        return list(self.__odeme_yontemleri.values())
+    
+    #belirli bir kullanıcıya ait ödeme yöntemlerini döndürür
+    def sahibine_gore_listele(self, sahip: str) -> list:
+        if not isinstance(sahip, str) or sahip.strip() == "":
+            raise ValueError("sahip bilgisi boş olamaz")
+
+        sahip = sahip.strip()
         sonuc = []
 
-        for y in self.odeme_yontemleri:
-            if getattr(y, "kisi", None) == kisi:
-                sonuc.append(y)
+        for odeme in self.__odeme_yontemleri.values():
+            if self.__odeme_sahibi(odeme) == sahip:
+                sonuc.append(odeme)
+
+        return sonuc
+    
+    #verilen id ye sahip ödeme yöntemini döndürür
+    def id_ile_bul(self, id: int):
+
+        if not isinstance(id, int) or id <= 0:
+            raise ValueError("id pozitif bir sayı olmalıdır.")
+
+        return self.__odeme_yontemleri.get(id)
+    
+
+#yapılan ödeme işlemlerini bellekte saklayan repository
+class InMemoryTransactionRepository:
+
+    def __init__(self) -> None:
+        self.__islemler: dict[int,Any] = {}
+        self.__siradaki_id: int = 1   # otomatik id vermek için sayaç
+
+    #işlem sahini döndürür
+    def __islem_sahibi(self, islem) -> str | None:
+        sahip = getattr(islem, "owner", None)
+        if isinstance(sahip, str) and sahip.strip() != "":
+            return sahip.strip()
+        return None
+    
+    #işlem durumu(BAŞARILI/BAŞARISIZ) döndürür
+    def __islem_durumu(self, islem) -> str | None:
+        durum = getattr(islem, "status", None)
+        if isinstance(durum, str) and durum.strip() != "":
+            return durum.strip().upper()
+        return None
+    
+    #yeni bir ödeme işlemini repositorye ekler
+    def ekle(self, islem) -> int:
+        if islem is None:
+            raise ValueError("işlem boş olamaz.")
+        islem_id = getattr(islem, "id", None)
+
+        #id yoksa otomatik ver
+        if islem_id is None:
+            islem_id = self.__siradaki_id
+            self.__siradaki_id += 1
+            try:
+                setattr(islem, "id", islem_id)
+            except Exception:
+                pass
+
+        if not isinstance(islem_id, int) or islem_id <= 0:
+            raise ValueError("İşlem id'si pozitif bir sayı olmalıdır.")
+
+        if islem_id in self.__islemler:
+            raise ValueError("Bu id ile kayıtlı bir işlem zaten var.")
+
+        if self.__islem_sahibi(islem) is None:
+            raise ValueError("İşlemin bir sahibi (owner) olmalıdır.")
+
+        self.__islemler[islem_id] = islem
+        return islem_id
+    #tüm işlemleri döndürür
+    def tumunu_listele(self) -> list:
+        return list(self.__islemler.values())
+    #Belirli bir kullanıcıya ait işlemleri döndürür.
+    def sahibine_gore_listele(self, sahip: str) -> list:
+        
+        if not isinstance(sahip, str) or sahip.strip() == "":
+            raise ValueError("Sahip bilgisi boş olamaz.")
+
+        sahip = sahip.strip()
+        sonuc = []
+
+        for islem in self.__islemler.values():
+            if self.__islem_sahibi(islem) == sahip:
+                sonuc.append(islem)
+
+        return sonuc
+    #İşlem durumuna(BASARILI / BASARISIZ göre filtreleme yapar.
+    def duruma_gore_listele(self, durum: str) -> list:
+      
+        if not isinstance(durum, str) or durum.strip() == "":
+            raise ValueError("Durum bilgisi boş olamaz.")
+
+        durum = durum.strip().upper()
+        sonuc = []
+
+        for islem in self.__islemler.values():
+            if self.__islem_durumu(islem) == durum:
+                sonuc.append(islem)
+
+        return sonuc
+             
+
+
+# Yemekhane menüsündeki ürünleri bellekte tutar.
+# Ürünlerin hangi günlerde çıkacağını (1-5) destekler.
+class InMemoryMenuRepository:
+    def __init__(self) -> None:
+        self.__urunler: dict[int, object] = {}
+        self.__siradaki_id: int = 1  # otomatik id için sayaç
+
+    # Ürün aktif mi kontrolü.
+    def __aktif_mi(self, urun) -> bool:
+        deger = getattr(urun, "available", None)
+        if deger is None:
+            deger = getattr(urun, "aktif_mi", None)
+
+        return bool(deger) if isinstance(deger, bool) else False
+
+    # Menü ürününü repository'e ekler.
+    def ekle(self, menu_urunu) -> int:
+        if menu_urunu is None:
+            raise ValueError("Menü ürünü boş olamaz.")
+
+        urun_id = getattr(menu_urunu, "id", None)
+
+        # id yoksa otomatik ver
+        if urun_id is None:
+            urun_id = self.__siradaki_id
+            self.__siradaki_id += 1
+            try:
+                setattr(menu_urunu, "id", urun_id)
+            except Exception:
+                pass
+
+        if not isinstance(urun_id, int) or urun_id <= 0:
+            raise ValueError("Menü ürünü id'si pozitif int olmalıdır.")
+
+        if urun_id in self.__urunler:
+            raise ValueError("Bu id ile kayıtlı bir menü ürünü zaten var.")
+
+        self.__urunler[urun_id] = menu_urunu
+        return urun_id
+
+    # ID ile menü ürününü bulur. Yoksa None döner.
+    def id_ile_getir(self, id: int):
+        if not isinstance(id, int) or id <= 0:
+            raise ValueError("id pozitif int olmalıdır.")
+        return self.__urunler.get(id)
+
+    # Menüdeki tüm ürünleri döndürür.
+    def tumunu_listele(self) -> list:
+        return list(self.__urunler.values())
+
+    # Sadece aktif olan ürünleri döndürür.
+    def aktifleri_listele(self) -> list:
+        sonuc = []
+        for urun in self.__urunler.values():
+            if self.__aktif_mi(urun):
+                sonuc.append(urun)
+        return sonuc
+
+    # Tek fonksiyonla listeleme isteyen servisler için 
+    def listele(self, sadece_aktif: bool = True) -> list:
+        return self.aktifleri_listele() if sadece_aktif else self.tumunu_listele()
+
+    # Kategoriye göre filtreler (örn: 'ana yemek', 'içecek').
+    def kategoriye_gore_listele(self, kategori: str) -> list:
+        if not isinstance(kategori, str) or kategori.strip() == "":
+            raise ValueError("Kategori boş olamaz.")
+
+        kategori = kategori.strip().lower()
+        sonuc = []
+
+        for urun in self.__urunler.values():
+            urun_kat = getattr(urun, "category", None)
+            if isinstance(urun_kat, str) and urun_kat.strip().lower() == kategori:
+                sonuc.append(urun)
 
         return sonuc
 
-    def kisi_yontem_sayisi(self, kisi: str) -> int:
-        return len(self.kisiye_gore_yontemleri_listele(kisi))
+    # Haftanın gününe göre ürünleri döndürür.
+    def gune_gore_listele(self, gun: int, sadece_aktif: bool = True) -> list:
+        if not isinstance(gun, int) or gun < 1 or gun > 5:
+            raise ValueError("Gün 1-5 arasında olmalıdır.")
 
-
-    def id_ile_yontem_getir(self, yontem_id: int):
-        
-        if yontem_id is None or yontem_id <= 0:
-            return None
-
-        for y in self.odeme_yontemleri:
-            if getattr(y, "yontem_id", None) == yontem_id:
-                return y
-
-        return None
-
-    def yontem_var_mi(self, yontem_id: int) -> bool:
-        yontem = self.id_ile_yontem_getir(yontem_id)
-        return yontem is not None
-
-
-    def yontem_sil(self, yontem_id: int) -> bool: #ID ile ödeme yöntemini siler. Silindiyse True, yoksa False döner.
-        
-        yontem = self.id_ile_yontem_getir(yontem_id)
-
-        if yontem is None:
-            print("[OdemeYontemiRepository] Silinecek yöntem bulunamadı.")
-            return False
-
-        self.odeme_yontemleri.remove(yontem)
-        print(f"[OdemeYontemiRepository] Ödeme yöntemi silindi. ID: {yontem_id}")
-        return True
-
-
-    def odeme_tipine_gore_listele(self, odeme_tipi: str):
-        
-        if odeme_tipi is None or len(odeme_tipi.strip()) == 0:
-            return []
-
-        odeme_tipi = odeme_tipi.strip()
         sonuc = []
 
-        for y in self.odeme_yontemleri:
-            # bazı nesnelerde odeme_tipi metodu yoksa hata vermesin diye try
-            try:
-                if y.odeme_tipi() == odeme_tipi:
-                    sonuc.append(y)
-            except Exception:
+        for urun in self.__urunler.values():
+            # available_days listesi var mı?
+            gunler = getattr(urun, "available_days", None)
+
+            eslesti = False
+            if isinstance(gunler, list) and all(isinstance(d, int) for d in gunler):
+                eslesti = gun in gunler
+            else:
+                # tek gün alanı (day / available_day)
+                tek_gun = getattr(urun, "day", None)
+                if tek_gun is None:
+                    tek_gun = getattr(urun, "available_day", None)
+                if isinstance(tek_gun, int):
+                    eslesti = (tek_gun == gun)
+
+            if not eslesti:
                 continue
 
-        return sonuc
+            if sadece_aktif and not self.__aktif_mi(urun):
+                continue
 
-    def para_birimine_gore_listele(self, para_birimi: str): #Para birimine göre ödeme yöntemlerini listeler (TL / USD gibi).
-    
-        if para_birimi is None or len(para_birimi.strip()) == 0:
-            return []
-
-        para_birimi = para_birimi.strip().upper()
-        sonuc = []
-
-        for y in self.odeme_yontemleri:
-            if getattr(y, "para_birimi", "").upper() == para_birimi:
-                sonuc.append(y)
+            sonuc.append(urun)
 
         return sonuc
-  
+
+
+
 

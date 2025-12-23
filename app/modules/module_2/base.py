@@ -1,4 +1,5 @@
-from __future__ import annotations
+
+from __future__ import annotations  #type hint’lerin geç değerlendirilmesini sağlar ve class’lar arası referans hatalarını önler.
 from abc import ABC, abstractmethod
 
 class PaymentMethod(ABC):

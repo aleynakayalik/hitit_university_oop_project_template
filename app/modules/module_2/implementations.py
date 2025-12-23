@@ -1,55 +1,59 @@
+
+from __future__ import annotations
 from app.modules.module_2.base import PaymentMethod
+from datetime import datetime
+from typing import Any, Iterable, List, Optional
 
 class CashPayment(PaymentMethod):#balance var limit yok
-   def __init__(self, owner: str, balance: float, currency: str = None):
+   def __init__(self, owner: str, balance: float, currency: str | None = None):
       if currency is None:
          currency = self.varsayilan_currency()  # currency verilmezse varsayılan kullanılır
       super().__init(owner = owner, balance = balance, currency = currency,limit = None)
       
-      #Ödeme yapılmadan önce yeterli bakiye var mı kontrol
-      def authorize(self, amount: float) -> bool: #Abstract method override
-         if not self.tutar_gecerli_mi(amount): #girilen tutar geçerli mi diye bakıyoruz
-            return False
-         
-         bakiye = self.get_balance()
-         if bakiye is None:
-            return False
-         #Bakiyemiz, ödemek istediğimiz tutardan büyük ya da eşitse ödeme yapılabilir
-         if bakiye >= amount:
-            return True
+   #Ödeme yapılmadan önce yeterli bakiye var mı kontrol
+   def authorize(self, amount: float) -> bool: #Abstract method override
+      if not self.tutar_gecerli_mi(amount): #girilen tutar geçerli mi diye bakıyoruz
          return False
       
-      #nakit ödeme işlemi
-      def odeme_yap(self, amount: float) -> bool: #Abstract method override
-         if not self.authorize(amount):
-            return False
+      bakiye = self.get_balance()
+      if bakiye is None:
+         return False
+      return bakiye >= amount
          
-         yeni_bakiye = self.get_balance() - amount
-         self.set_balance(yeni_bakiye)
-         return True
+   
+   #nakit ödeme işlemi
+   def odeme_yap(self, amount: float) -> bool: #Abstract method override
+      if not self.authorize(amount):
+         return False
       
-      #yapılan ödemenin iadesi
-      def iade_yap(self, amount: float) -> bool: #Abstract method override
-         if not self.tutar_gecerli_mi(amount):
-            return False
-         yeni_bakiye = (self.get_balance() or 0.0) + amount
-         self.set_balance(yeni_bakiye)
-         return True
-      
-      #ödeme yöntemi nakit mi kontrolü
-      @staticmethod
-      def nakit_mi() -> bool:
-         return True
-      
-      #sınıf hakkında kısa bilgi
-      @classmethod
-      def odeme_tipi(cls) -> str:
-         return "Nakit Ödeme"
-      
+      yeni_bakiye = self.get_balance() - amount
+      self.set_balance(yeni_bakiye)
+      return True
+   
+   #yapılan ödemenin iadesi
+   def iade_yap(self, amount: float) -> bool: #Abstract method override
+      if not self.tutar_gecerli_mi(amount):
+         return False
+      yeni_bakiye = (self.get_balance() or 0.0) + amount
+      self.set_balance(yeni_bakiye)
+      return True
+   
+   #ödeme yöntemi nakit mi kontrolü
+   @staticmethod
+   def nakit_mi() -> bool:
+      return True
+   
+   #sınıf hakkında kısa bilgi
+   @classmethod
+   def odeme_tipi(cls) -> str:
+      return "Nakit Ödeme"
+   
       
 class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
    
-   def __init__(self,owner: str,card_no: str,card_holder_name: str,expiry_date: str,cvv: str,limit: float,currency: str  |None = None):
+   def __init__(self,owner: str,card_no: str,card_holder_name: str
+                ,expiry_date: str,cvv: str,limit: float,currency: str  |None = None):
+      
       #para birimi verilmezse varsayılan kullanılır
       if currency is None:
           currency = self.varsayilan_currency()
@@ -68,127 +72,126 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
       self.set_expiry_date(expiry_date)   
       self.set_cvv(cvv)
 
-      #kart numarası
-      def get_card_no(self) -> str:
-         return self.__card_no
-      def set_card_no(self, card_no: str) -> None:
-         if not isinstance(card_no,str):
-            raise ValueError("Kart numarası metin olmalıdır.")
-         
-         card_no = card_no.strip().replace(" ","")
-         
-         if not card_no.isdigit():
-            raise ValueError("Kartt numarası sadece rakam içermeli.")
-         if len(card_no) < 12 or len(card_no) > 19:
-            raise ValueError("Kart numarası 12-19 haneli olmalıdır.")
-         
-         self.__card_no = card_no
-
-      #kart sahini
-      def get_card_holder_name(self) -> str:
-         return self.__card_holder_name
-      def set_card_holder_name(self, name: str) -> None:
-         if not isinstance(name, str):
-            raise ValueError("Kart sahibinin adı metin olmalıdır.")
-         
-         name= name.strip()
-         if name =="":
-            raise ValueError("Kart sahibinin adı boş olamaz.")
-         if len(name) < 3 :
-            raise ValueError("Kart sahibinin adı çok kısa.")
-         self.__card_holder_name = name
-
-      #son kullanma tarihi cvv
-      def get_expiry_date(self) -> str:
-         return self.__expiry_date
-      def set_expiry_date(self, expiry_date: str) -> None:
-         if not isinstance(expiry_date, str):
-            raise ValueError("Son kullanma tarihi metin olmalıdır.")
-         
-         expiry_date = expiry_date.stript()
-
-         #MM/YY
-         if len(expiry_date) != 5 or expiry_date[2] != "/":
-            raise ValueError("Son kullanma tarihi MM/YY şeklinde olmalıdır.")
-         
-         ay, yil = expiry_date.split("/")
-
-         if not ay.isdigit() or not yil.isdigit():
-            raise ValueError("Son kullanma tarihi sayısal olmalıdır.")
-         if not (1 <= int(ay) <= 12):
-            raise ValueError("Ay 1 ile 12 arasında olmalıdır.")
-         
-         self.__expiry_date = expiry_date
-
-      #cvv
-      def get_cvv(self) -> str:
-        return self.__cvv
-
-      def set_cvv(self, cvv: str) -> None:
-         if not isinstance(cvv, str):
-            raise ValueError("CVV metin olmalıdır.")
-
-         cvv = cvv.strip()
-
-         if not cvv.isdigit():
-            raise ValueError("CVV sadece rakam olmalıdır.")
-         if len(cvv) not in (3, 4):
-            raise ValueError("CVV 3 veya 4 haneli olmalıdır.")
-
-         self.__cvv = cvv
-
-      #Kart numarasını ekranda gizli göstermek için
-      def masked_card_no(self) -> str:
-         return "*" * (len(self.__card_no) - 4) + self.__card_no[-4:]
+   #kart numarası
+   def get_card_no(self) -> str:
+      return self.__card_no
+   def set_card_no(self, card_no: str) -> None:
+      if not isinstance(card_no,str):
+         raise ValueError("Kart numarası metin olmalıdır.")
       
+      card_no = card_no.strip().replace(" ","")
+      
+      if not card_no.isdigit():
+         raise ValueError("Kart numarası sadece rakam içermeli.")
+      if len(card_no) < 12 or len(card_no) > 19:
+         raise ValueError("Kart numarası 12-19 haneli olmalıdır.")
+      
+      self.__card_no = card_no
+
+   #kart sahini
+   def get_card_holder_name(self) -> str:
+      return self.__card_holder_name
+   def set_card_holder_name(self, name: str) -> None:
+      if not isinstance(name, str):
+         raise ValueError("Kart sahibinin adı metin olmalıdır.")
+      
+      name= name.strip()
+      if name =="":
+         raise ValueError("Kart sahibinin adı boş olamaz.")
+      if len(name) < 3 :
+         raise ValueError("Kart sahibinin adı çok kısa.")
+      self.__card_holder_name = name
+
+   #son kullanma tarihi cvv
+   def get_expiry_date(self) -> str:
+      return self.__expiry_date
+   def set_expiry_date(self, expiry_date: str) -> None:
+      if not isinstance(expiry_date, str):
+         raise ValueError("Son kullanma tarihi metin olmalıdır.")
+      
+      expiry_date = expiry_date.strip()
+
+      #MM/YY
+      if len(expiry_date) != 5 or expiry_date[2] != "/":
+         raise ValueError("Son kullanma tarihi MM/YY şeklinde olmalıdır.")
+      
+      ay, yil = expiry_date.split("/")
+
+      if not ay.isdigit() or not yil.isdigit():
+         raise ValueError("Son kullanma tarihi sayısal olmalıdır.")
+      if not (1 <= int(ay) <= 12):
+         raise ValueError("Ay 1 ile 12 arasında olmalıdır.")
+      
+      self.__expiry_date = expiry_date
+
+   #cvv
+   def get_cvv(self) -> str:
+      return self.__cvv
+
+   def set_cvv(self, cvv: str) -> None:
+      if not isinstance(cvv, str):
+         raise ValueError("CVV metin olmalıdır.")
+
+      cvv = cvv.strip()
+
+      if not cvv.isdigit():
+         raise ValueError("CVV sadece rakam olmalıdır.")
+      if len(cvv) not in (3, 4):
+         raise ValueError("CVV 3 veya 4 haneli olmalıdır.")
+
+      self.__cvv = cvv
+
+   #Kart numarasını ekranda gizli göstermek için
+   def masked_card_no(self) -> str:
+      return "*" * (len(self.__card_no) - 4) + self.__card_no[-4:]
+   
       #ödeme işlemleri
-      def authorize(self, amount: float) -> bool: #Tutar geçerli mi
-         if not self.tutar_gecerli_mi(amount):
-            return False
+   def authorize(self, amount: float) -> bool: #Tutar geçerli mi
+      if not self.tutar_gecerli_mi(amount):
+         return False
 
-         limit = self.get_limit()
-         if limit is None:
-            return False
+      limit = self.get_limit()
+      if limit is None:
+         return False
 
-         if limit >= amount:
-            return True
+      return limit >= amount
 
-      def odeme_yap(self, amount: float) -> bool:
-         # Önce kontrol ediyor
-         if not self.authorize(amount):
-            return False
+   def odeme_yap(self, amount: float) -> bool:
+      # Önce kontrol ediyor
+      if not self.authorize(amount):
+         return False
 
-         # Limitten düş
-         yeni_limit = self.get_limit() - amount
-         self.set_limit(yeni_limit)
-         return True
+      # Limitten düş
+      yeni_limit = self.get_limit() - amount
+      self.set_limit(yeni_limit)
+      return True
 
-      def iade_yap(self, amount: float) -> bool:
-         if not self.tutar_gecerli_mi(amount):
-            return False
+   def iade_yap(self, amount: float) -> bool:
+      if not self.tutar_gecerli_mi(amount):
+         return False
 
-         yeni_limit = (self.get_limit() or 0.0) + amount
-         self.set_limit(yeni_limit)
-         return True
+      yeni_limit = (self.get_limit() or 0.0) + amount
+      self.set_limit(yeni_limit)
+      return True
 
-      @staticmethod
-      def kart_tipi() -> str:
-          return "Kredi Kartı"
+   @staticmethod
+   def kart_tipi() -> str:
+         return "Kredi Kartı"
 
-      @classmethod
-      def odeme_tipi(cls) -> str:
-          return "Kredi Kartı"
-         
+   @classmethod
+   def odeme_tipi(cls) -> str:
+         return "Kredi Kartı"
+      
 
-      def get_info(self) -> str:
-          return (
-            f"{self.__class__.__name__} | "
-            f"Kişi: {self.get_owner()} | "
-            f"Kart Sahibi: {self.__card_holder_name} | "
-            f"Kart: {self.masked_card_no()} | "
-            f"SKT: {self.__expiry_date} | "
-            f"Limit: {self.kullanilabilir_tutar():.2f}"
-        )
+   def get_info(self) -> str:
+         return (
+         f"{self.__class__.__name__} | "
+         f"Kişi: {self.get_owner()} | "
+         f"Kart Sahibi: {self.__card_holder_name} | "
+         f"Kart: {self.masked_card_no()} | "
+         f"SKT: {self.__expiry_date} | "
+         f"Limit: {self.kullanilabilir_tutar():.2f}"
+      )
 
 
 class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
@@ -292,7 +295,7 @@ class OnlineWalletPayment(PaymentMethod): #balance ile çalışır
 
 #Yemekhane menüsündeki tek bir ürünü temsil eden entity sınıfı
 class MenuItem:
-   def __init__(self, id: int, name: str, price: float, category: str,is_avaible: bool = True,
+   def __init__(self, id: int, name: str, price: float, category: str,is_available: bool = True,
                 tags: list[str] | None = None, available_days: list[int] | None = None):
       self.__id = None
       self.__name = None
@@ -306,7 +309,7 @@ class MenuItem:
       self.set_name(name)
       self.set_price(price)
       self.set_category(category)
-      self.set_is_available(is_avaible)
+      self.set_is_available(is_available)
       self.set_tags(tags)
       self.set_available_days(available_days)
 
@@ -384,7 +387,7 @@ class MenuItem:
          if tag != "":
             temiz_tags.append(tag.lower())
 
-         self.__tags = temiz_tags
+      self.__tags = temiz_tags
 
    #Ürünün servis edleceği günleri döndürür (1=Pzt,2=Salı,...,5=Cuma)
    def get_available_days(self) -> list[int]:
@@ -686,8 +689,8 @@ class PaymentTransaction:
       return self.__id
    #İşlem id bilgisini ayarlar
    def set_id(self, id: int) -> None:
-      if not isinstance(id, int) or id <= 0:
-         raise ValueError("Transaction id pozitif bir integer olmalıdır.")
+      if not isinstance(id, int) or id < 0:
+         raise ValueError("Transaction id negatif olamaz. (0 = repo atayacak)")
       self.__id = id
 
    #İşlemi yapan kullanıcıyı döndürür
@@ -707,8 +710,8 @@ class PaymentTransaction:
       return self.__order_id
    #İlgili sipariş id'sini ayarlar
    def set_order_id(self, order_id: int) -> None:
-      if not isinstance(order_id, int) or order_id <= 0:
-         raise ValueError("order_id pozitif bir integer olmalıdır.")
+      if not isinstance(order_id, int) or order_id < 0:
+         raise ValueError("order_id negatif olamaz. (0 = bilinmiyor)")
       self.__order_id = order_id
       
    #Ödenen tutarı döndürür
@@ -797,20 +800,367 @@ class PaymentTransaction:
    @staticmethod
    def id_gecerli_mi(tx_id: int) -> bool:
       return isinstance(tx_id, int) and tx_id > 0
+   
+   @classmethod
+   def basarili(cls, owner: str, amount: float, currency: str, method_type: str,
+        order_id: int = 0, id: int = 0, created_at: datetime | None = None,) -> "PaymentTransaction":
+      return cls(id=id, owner=owner, order_id=order_id, amount=amount, currency=currency,
+            status="BAŞARILI", method_type=method_type, failure_reason="", created_at=created_at,)
+
+   @classmethod
+   def basarisiz(cls, owner: str, amount: float, currency: str, method_type: str,
+        reason: str, order_id: int = 0, id: int = 0, created_at: datetime | None = None,) -> "PaymentTransaction":
+      return cls(id=id, owner=owner, order_id=order_id, amount=amount, currency=currency,
+            status="BAŞARISIZ", method_type=method_type, failure_reason=reason, created_at=created_at,)
+   
+   
    #Başarılı bir ödeme işlemi oluşturur
    @classmethod
    def basarili_islem(cls,id: int, owner: str, order_id: int, amount: float,
                       currency: str, method_type: str) -> "PaymentTransaction":
-    return cls(id=id, owner=owner, order_id=order_id, amount=amount, currency=currency,
+      return cls(id=id, owner=owner, order_id=order_id, amount=amount, currency=currency,
                status="BAŞARILI", method_type=method_type, failure_reason="")
 
  
 
+#Yemekhane ve ödeme süreçlerini yöneten servis sınıfı
+class CafeteriaService:
 
+   def __init__(self, menu_repo: Any, order_repo: Any, tx_repo: Any, payment_repo: Any) -> None:
+      self._menu_repo = menu_repo
+      self._order_repo = order_repo
+      self._tx_repo = tx_repo
+      self._payment_repo = payment_repo
+
+   #1-5 arası günü yazıya çevirir.
+   @staticmethod
+   def gun_adi(gun: int) -> str:
+      return {
+            1: "Pazartesi",
+            2: "Salı",
+            3: "Çarşamba",
+            4: "Perşembe",
+            5: "Cuma",
+      }.get(gun, "Bilinmeyen Gün")
+
+   #Repo dönüşünü güvenli şekilde listeye çevirir.
+   @staticmethod
+   def _liste_yap(obj: Any) -> list:
+        
+        if obj is None:
+            return []
+        if isinstance(obj, list):
+            return obj
+        if isinstance(obj, tuple):
+            return list(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        if isinstance(obj, dict):
+            return list(obj.values())
+        if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes)):
+            return list(obj)
+        return [obj]
+   
+   #Servis genelinde varsayılan para birimi.
+   @classmethod
+   def varsayilan_para_birimi(cls) -> str:
+      return "TRY"
+   #Repo üzerinde metot adları farklı olsa da uygun olanı çağırır.
+   def _repo_cagir(self, repo: Any, aday_islemleri: list[str], *args, **kwargs):
+      for ad in aday_islemleri:
+         fn = getattr(repo, ad, None)
+         if callable(fn):
+            return fn(*args, **kwargs)
+      raise AttributeError(f"Repo içinde beklenen metot yok: {aday_islemleri}")
    
 
+   def _yeni_siparis_id(self) -> int:
+    # 1) Repo sayaç metodu varsa
+      for ad in ["yeni_id", "next_id", "siradaki_id", "get_next_id"]:
+         fn = getattr(self._order_repo, ad, None)
+         if callable(fn):
+            yeni = fn()
+            if isinstance(yeni, int) and yeni > 0:
+                  return yeni
+
+      # 2) Yoksa mevcut siparişlerden max+1
+      try:
+         mevcut = self._repo_cagir(self._order_repo, ["tumunu_listele", "list_all"])
+         mevcut_list = self._liste_yap(mevcut)
+      except Exception:
+         mevcut_list = []
+
+      en_buyuk = 0
+      for o in mevcut_list:
+         get_id = getattr(o, "get_id", None)
+         if callable(get_id):
+            try:
+                  val = get_id()
+                  if isinstance(val, int) and val > en_buyuk:
+                     en_buyuk = val
+            except Exception:
+                  pass
+
+      return en_buyuk + 1
+
+
+   # Verilen ürün id’lerinden sipariş oluşturur ve repo’ya kaydeder
+   def siparis_olustur(self, owner: str, urun_idleri: List[int]) -> Order:
+      if not isinstance(owner, str) or not owner.strip():
+         raise ValueError("owner boş olamaz.")
+      if not isinstance(urun_idleri, list) or not urun_idleri:
+         raise ValueError("Sipariş için en az 1 ürün seçmelisin.")
+
+      items: List[MenuItem] = []
+      for uid in urun_idleri:
+         urun = self.urun_getir(uid)
+         if urun is None:
+            raise ValueError(f"Ürün bulunamadı: id={uid}")
+
+         # MenuItem.get_is_available() varsa onu kullan
+         get_av = getattr(urun, "get_is_available", None)
+         if callable(get_av):
+            if get_av() is False:
+                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
+
+         items.append(urun)
+
+      yeni_id = self._yeni_siparis_id()
+
+      order = Order(
+         id=yeni_id,  #id veriyoruz 
+         owner=owner.strip(),
+         items=items,
+         currency=self.varsayilan_para_birimi(),
+         created_at=datetime.now(),
+         status="SİPARİŞ OLUŞTURULDU",
+      )
+
+      self._repo_cagir(self._order_repo, ["ekle", "add"], order)
+      return order
+
+#MENU
+   #Tüm menüyü listeler (aktif filtreli / filtresiz).
+   def menu_listele(self, sadece_aktif: bool = True) -> List[MenuItem]:
+      sonuc = self._repo_cagir(self._menu_repo, ["listele", "list_all", "tumunu_listele"], sadece_aktif)
+      return self._liste_yap(sonuc)
+   
+   #İstenen güne göre menüyü döndürür.
+   def menuyu_goster(self, gun: int, sadece_aktif: bool = True) -> List[MenuItem]:
+      sonuc = self._repo_cagir(self._menu_repo, ["gune_gore_listele"], gun, sadece_aktif)
+      return self._liste_yap(sonuc)
+   
+   #ID ile menü ürünü getirir.
+   def urun_getir(self, urun_id: int) -> Optional[MenuItem]:
+      return self._repo_cagir(self._menu_repo, ["id_ile_getir", "get_by_id"], urun_id)
+   
+   #Kategoriye göre menü ürünlerini listeler
+   def kategoriye_gore_menu(self, kategori: str, sadece_aktif: bool = True):
+      items = self._menu_repo.kategoriye_gore_listele(kategori)
+
+      if not sadece_aktif:
+         return items
+
+      sonuc = []
+      for u in items:
+         aktif = getattr(u, "aktif_mi", None)
+         if aktif is None:
+               aktif = getattr(u, "available", None)
+         if aktif is True:
+               sonuc.append(u)
+
+      return sonuc
+
+#SİPARİŞ
+   #Verilen ürün id’lerinden sipariş oluşturur ve repo’ya kaydeder
+   def siparis_olustur(self, owner: str, urun_idleri: List[int]) -> Order:
+      if not isinstance(owner, str) or not owner.strip():
+         raise ValueError("owner boş olamaz.")
+      if not isinstance(urun_idleri, list) or not urun_idleri:
+         raise ValueError("Sipariş için en az 1 ürün seçmelisin.")
+
+      items: List[MenuItem] = []
+      for uid in urun_idleri:
+         urun = self.urun_getir(uid)
+         if urun is None:
+            raise ValueError(f"Ürün bulunamadı: id={uid}")
+
+         # MenuItem’ında aktiflik kontrolü
+         aktif_deger = getattr(urun, "get_is_available", None)
+         if callable(aktif_deger):
+            if aktif_deger() is False:
+                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
+         else:
+            # eski alan adları için (varsa)
+            raw = getattr(urun, "_MenuItem__is_available", True)
+            if raw is False:
+                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
+
+         items.append(urun)
+
+      yeni_id = self._yeni_siparis_id()
+
+      order = Order(
+         id=yeni_id,
+         owner=owner.strip(),
+         items=items,
+         currency=self.varsayilan_para_birimi(),
+         created_at=datetime.now(),
+         status="SİPARİŞ OLUŞTURULDU",
+      )
+
+      self._repo_cagir(self._order_repo, ["ekle", "add"], order)
+      return order
+
+
+   #Sipariş id ile getirir.
+   def siparis_getir(self, siparis_id: int) -> Optional[Order]:
+      return self._repo_cagir(self._order_repo, ["id_ile_getir", "get_by_id"], siparis_id)
+   #Siparişleri listeler
+   def siparisleri_listele(self, owner: str | None = None) -> list[Order]:
+      if owner and isinstance(owner, str) and owner.strip():
+         sonuc = self._repo_cagir(self._order_repo, ["kullaniciya_gore_listele", "list_by_owner"], owner.strip())
+         return self._liste_yap(sonuc)
+      sonuc = self._repo_cagir(self._order_repo, ["tumunu_listele", "list_all"])
+      return self._liste_yap(sonuc)
+
+#ÖDEME YÖNTEMİ SEÇME
+   #Ödeme yöntemlerini listeler (kullanıcıya göre / hepsi).
+   def odeme_yontemleri(self, owner: str | None = None) -> list[PaymentMethod]:
+      if owner and isinstance(owner, str) and owner.strip():
+         sonuc = self._repo_cagir(self._payment_repo, ["kullaniciya_gore_listele", "list_by_owner"], owner.strip())
+         return self._liste_yap(sonuc)
+      sonuc = self._repo_cagir(self._payment_repo, ["tumunu_listele", "list_all"])
+      return self._liste_yap(sonuc)
+
+   #Kullanıcının ödeme yöntemleri içinde authorize(tutar) geçen ilk yöntemi seçer.
+   #Polimorfizm: Cash/CreditCard/Wallet hepsi PaymentMethod gibi davranır.
+   def uygun_odeme_yontemi_sec(self, owner: str, tutar: float) -> PaymentMethod | None:
+      
+      yontemler = self.odeme_yontemleri(owner)
+
+      for y in yontemler:
+         try:
+               if y.authorize(tutar):
+                  return y
+         except Exception: # bir yöntem bozuksa diğerini dene
+               continue
+      return None
    
 
+#ÖDEME
 
-    
+   def odeme_al(self, siparis_id: int, payment_method: PaymentMethod | None = None,
+            otomatik_sec: bool = True,) -> PaymentTransaction:
+        
+      order = self.siparis_getir(siparis_id)
+      if order is None:
+         raise ValueError("Sipariş bulunamadı.")
+      
+      order_owner = order.get_owner()
+      # toplam tutar
+      toplam = order.toplam_tutar()
 
+      # ödeme yöntemi seçimi
+      secilen = payment_method
+      if secilen is None and otomatik_sec:
+         secilen = self.uygun_odeme_yontemi_sec(order.owner, toplam)
+
+      if secilen is None:
+         # hiç yöntem yoksa bile tx kaydı düşelim
+         tx = PaymentTransaction.basarisiz(
+               owner=order.get_owner(),
+               amount=toplam,
+               currency=self.varsayilan_para_birimi(),
+               method_type="Yok",
+               reason="Uygun ödeme yöntemi bulunamadı.",
+               order_id=order.get_id(),
+         )
+         self._repo_cagir(self._tx_repo, ["ekle", "add"], tx)
+         return tx
+
+      # authorize (bu ödeme yapılabilir mi? diye sorgulamak)
+      try:
+         yetki = secilen.authorize(toplam)
+      except Exception as e:
+         yetki = False
+         hata = str(e)
+      else:
+         hata = ""
+
+      if not yetki:
+         tx = PaymentTransaction.basarisiz(
+               owner=order.owner,
+               amount=toplam,
+               currency=getattr(secilen, "get_currency", lambda: self.varsayilan_para_birimi())(),
+               method_type=secilen.__class__.__name__,
+               reason=("Yetkilendirme başarısız." + (f" {hata}" if hata else ""))
+         )
+         self._repo_cagir(self._tx_repo, ["ekle", "add"], tx)
+         return tx
+
+      # ödeme yap
+      try:
+         ok = secilen.odeme_yap(toplam)
+         if ok is False:
+            raise ValueError("Ödeme yöntemi odemeyi reddetti.")
+      except Exception as e:
+         tx = PaymentTransaction.basarisiz(
+               owner=order_owner,
+               amount=toplam,
+               currency=getattr(secilen, "get_currency", lambda: self.varsayilan_para_birimi())(),
+               method_type=secilen.__class__.__name__,
+               reason=f"Ödeme sırasında hata: {e}",
+               order_id=order.get_id(),
+         )
+         self._repo_cagir(self._tx_repo, ["ekle", "add"], tx)
+         return tx
+
+      # başarılı tx
+      tx = PaymentTransaction.basarili(
+         owner=order.owner,
+         amount=toplam,
+         currency=getattr(secilen, "get_currency", lambda: self.varsayilan_para_birimi())(),
+         method_type=secilen.__class__.__name__,
+         order_id=order.get_id(),
+      )
+      self._repo_cagir(self._tx_repo, ["ekle", "add"], tx)
+
+      # siparişi ödenmiş işaretle 
+      set_status = getattr(order, "set_status", None)
+      if callable(set_status):
+         set_status("PAID")
+
+      set_paid = getattr(order, "set_paid_amount", None)
+      if callable(set_paid):
+         set_paid(toplam)
+
+      # repo’da update metodu varsa çağır (opsiyonel)
+      for upd in ["guncelle", "update"]:
+         ufn = getattr(self._order_repo, upd, None)
+         if callable(ufn):
+               try:
+                  ufn(order)
+               except Exception:
+                  pass
+
+      return tx
+
+#İŞLEM GEÇMİŞİ
+   #İşlemleri listeler (kullanıcıya göre / tümü).
+   def islemleri_listele(self, owner: str | None = None) -> list[PaymentTransaction]:
+        
+      if owner and isinstance(owner, str) and owner.strip():
+         sonuc = self._repo_cagir(self._tx_repo, ["kullaniciya_gore_listele", "list_by_owner"], owner.strip())
+         return self._liste_yap(sonuc)
+      sonuc = self._repo_cagir(self._tx_repo, ["tumunu_listele", "list_all"])
+      return self._liste_yap(sonuc)
+   #Sadece başarılı işlemleri döndürür (repo destekliyorsa)
+   def basarili_islemler(self) -> list[PaymentTransaction]: 
+      try:
+         sonuc = self._repo_cagir(self._tx_repo, ["duruma_gore_listele", "list_by_status"], "BASARILI")
+         return self._liste_yap(sonuc)
+      except Exception:
+         # repo’da yoksa basit filtre
+         txs = self.islemleri_listele()
+         return [t for t in txs if getattr(t, "status", "") in {"BASARILI", "SUCCESS", "OK"}]
