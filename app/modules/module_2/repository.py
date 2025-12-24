@@ -1,6 +1,6 @@
 
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 #Kullanıcıların ödeme yöntemlerini veritabenı varmış gibi RAM de saklar
 class InMemoryPaymentRepository:
@@ -89,6 +89,21 @@ class InMemoryPaymentRepository:
 
         return self.__odeme_yontemleri.get(id)
     
+    def kullaniciya_gore_listele(self, owner: str) -> list:
+        return self.sahibine_gore_listele(owner)
+
+    def list_by_owner(self, owner: str) -> list:
+        return self.sahibine_gore_listele(owner)
+
+    def list_all(self) -> list:
+        return self.tumunu_listele()
+
+    def id_ile_getir(self, id: int):
+        return self.id_ile_bul(id)
+
+    def get_by_id(self, id: int):
+        return self.id_ile_bul(id)
+    
 
 #yapılan ödeme işlemlerini bellekte saklayan repository
 class InMemoryTransactionRepository:
@@ -99,32 +114,50 @@ class InMemoryTransactionRepository:
 
     #işlem sahini döndürür
     def __islem_sahibi(self, islem) -> str | None:
-        sahip = getattr(islem, "owner", None)
-        if isinstance(sahip, str) and sahip.strip() != "":
-            return sahip.strip()
+        get_owner = getattr(islem, "get_owner", None)
+        if callable(get_owner):
+            try:
+                s = get_owner()
+                return s.strip() if isinstance(s, str) and s.strip() else None
+            except Exception:
+                return None
         return None
-    
+
     #işlem durumu(BAŞARILI/BAŞARISIZ) döndürür
     def __islem_durumu(self, islem) -> str | None:
-        durum = getattr(islem, "status", None)
-        if isinstance(durum, str) and durum.strip() != "":
-            return durum.strip().upper()
+        get_status = getattr(islem, "get_status", None)
+        if callable(get_status):
+            try:
+                d = get_status()
+                return d.strip().upper() if isinstance(d, str) and d.strip() else None
+            except Exception:
+                return None
         return None
     
     #yeni bir ödeme işlemini repositorye ekler
     def ekle(self, islem) -> int:
         if islem is None:
             raise ValueError("işlem boş olamaz.")
-        islem_id = getattr(islem, "id", None)
+        get_id = getattr(islem, "get_id", None)
+        if callable(get_id):
+            try:
+                islem_id = get_id()
+            except Exception:
+                islem_id = None
+        else:
+            islem_id = getattr(islem, "id", None)
 
-        #id yoksa otomatik ver
-        if islem_id is None:
+
+        # id yoksa otomatik ver
+        if islem_id is None or (isinstance(islem_id, int) and islem_id == 0):
             islem_id = self.__siradaki_id
             self.__siradaki_id += 1
-            try:
+
+            set_id = getattr(islem, "set_id", None)
+            if callable(set_id):
+                set_id(islem_id)
+            else:
                 setattr(islem, "id", islem_id)
-            except Exception:
-                pass
 
         if not isinstance(islem_id, int) or islem_id <= 0:
             raise ValueError("İşlem id'si pozitif bir sayı olmalıdır.")
@@ -137,6 +170,7 @@ class InMemoryTransactionRepository:
 
         self.__islemler[islem_id] = islem
         return islem_id
+    
     #tüm işlemleri döndürür
     def tumunu_listele(self) -> list:
         return list(self.__islemler.values())
@@ -168,7 +202,21 @@ class InMemoryTransactionRepository:
                 sonuc.append(islem)
 
         return sonuc
-             
+    
+    #Servis uyumu için ALIAS metotlar
+
+    def kullaniciya_gore_listele(self, owner: str) -> list:
+        return self.sahibine_gore_listele(owner)
+
+    def list_by_owner(self, owner: str) -> list:
+        return self.sahibine_gore_listele(owner)
+
+    def list_all(self) -> list:
+        return self.tumunu_listele()
+
+    def list_by_status(self, status: str) -> list:
+        return self.duruma_gore_listele(status)
+
 
 
 # Yemekhane menüsündeki ürünleri bellekte tutar.
@@ -180,11 +228,21 @@ class InMemoryMenuRepository:
 
     # Ürün aktif mi kontrolü.
     def __aktif_mi(self, urun) -> bool:
+        get_av = getattr(urun, "get_is_available", None) ## MenuItem için doğru yol: getter
+        if callable(get_av):
+            try:
+                return bool(get_av())
+            except Exception:
+                return False
+    # Getter yoksa (başka objeler için) fallback
         deger = getattr(urun, "available", None)
-        if deger is None:
-            deger = getattr(urun, "aktif_mi", None)
+        if isinstance(deger, bool):
+            return deger
+        deger = getattr(urun, "aktif_mi", None)
+        if isinstance(deger, bool):
+            return deger
 
-        return bool(deger) if isinstance(deger, bool) else False
+        return False
 
     # Menü ürününü repository'e ekler.
     def ekle(self, menu_urunu) -> int:
@@ -197,10 +255,20 @@ class InMemoryMenuRepository:
         if urun_id is None:
             urun_id = self.__siradaki_id
             self.__siradaki_id += 1
-            try:
-                setattr(menu_urunu, "id", urun_id)
-            except Exception:
-                pass
+            set_id = getattr(menu_urunu, "set_id", None)
+            if callable(set_id):
+                try:
+                    set_id(urun_id)
+                except Exception:
+                    try:
+                        setattr(menu_urunu, "id", urun_id)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    setattr(menu_urunu, "id", urun_id)
+                except Exception:
+                    pass
 
         if not isinstance(urun_id, int) or urun_id <= 0:
             raise ValueError("Menü ürünü id'si pozitif int olmalıdır.")
@@ -242,7 +310,11 @@ class InMemoryMenuRepository:
         sonuc = []
 
         for urun in self.__urunler.values():
-            urun_kat = getattr(urun, "category", None)
+            get_cat = getattr(urun, "get_category", None)
+            if callable(get_cat):
+                urun_kat = get_cat()
+            else:
+                urun_kat = getattr(urun, "category", None)
             if isinstance(urun_kat, str) and urun_kat.strip().lower() == kategori:
                 sonuc.append(urun)
 
@@ -257,7 +329,15 @@ class InMemoryMenuRepository:
 
         for urun in self.__urunler.values():
             # available_days listesi var mı?
-            gunler = getattr(urun, "available_days", None)
+            gunler = None
+            get_days = getattr(urun, "get_available_days", None)
+            if callable(get_days):
+                try:
+                    gunler = get_days()
+                except Exception:
+                    gunler = None
+            else:
+                gunler = getattr(urun, "available_days", None)
 
             eslesti = False
             if isinstance(gunler, list) and all(isinstance(d, int) for d in gunler):
@@ -279,6 +359,150 @@ class InMemoryMenuRepository:
             sonuc.append(urun)
 
         return sonuc
+    
+
+
+
+# Siparişleri (Order) veritabanı varmış gibi RAM'de tutan repository.
+class InMemoryOrderRepository:
+    # Repo içindeki siparişleri ve otomatik id sayacını hazırlar.
+    def __init__(self) -> None:
+        self.__siparisler: Dict[int, Any] = {}
+        self.__siradaki_id: int = 1
+
+    # Repo içindeki siparişten güvenli şekilde id çekmeye çalışır.
+    def __siparis_id(self, siparis) -> Optional[int]:
+        if siparis is None:
+            return None
+
+        get_id = getattr(siparis, "get_id", None)
+        if callable(get_id):
+            try:
+                val = get_id()
+                if isinstance(val, int):
+                    return val
+            except Exception:
+                pass
+
+        val = getattr(siparis, "id", None)
+        return val if isinstance(val, int) else None
+
+    # Repo içindeki siparişten güvenli şekilde owner çekmeye çalışır.
+    def __siparis_sahibi(self, siparis) -> Optional[str]:
+        if siparis is None:
+            return None
+
+        get_owner = getattr(siparis, "get_owner", None)
+        if callable(get_owner):
+            try:
+                s = get_owner()
+                if isinstance(s, str) and s.strip():
+                    return s.strip()
+            except Exception:
+                pass
+
+        s = getattr(siparis, "owner", None)
+        if isinstance(s, str) and s.strip():
+            return s.strip()
+
+        return None
+
+    # Repo'nun bir sonraki id'sini döndürür (servis bunu arıyor olabilir).
+    def yeni_id(self) -> int:
+        yeni = self.__siradaki_id
+        self.__siradaki_id += 1
+        return yeni
+
+    # Siparişi repo'ya ekler, id yoksa otomatik id verir.
+    def ekle(self, siparis) -> int:
+        if siparis is None:
+            raise ValueError("Sipariş boş olamaz.")
+
+        sahip = self.__siparis_sahibi(siparis)
+        if sahip is None:
+            raise ValueError("Siparişin sahibi (owner) olmalıdır.")
+
+        siparis_id = self.__siparis_id(siparis)
+
+        # id yoksa (None veya 0 ise) otomatik ver
+        if siparis_id is None or (isinstance(siparis_id, int) and siparis_id == 0):
+            siparis_id = self.yeni_id()
+
+            set_id = getattr(siparis, "set_id", None)
+            if callable(set_id):
+                try:
+                    set_id(siparis_id)
+                except Exception:
+                    try:
+                        setattr(siparis, "id", siparis_id)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    setattr(siparis, "id", siparis_id)
+                except Exception:
+                    pass
+
+        if not isinstance(siparis_id, int) or siparis_id <= 0:
+            raise ValueError("Sipariş id'si pozitif bir sayı olmalıdır.")
+
+        if siparis_id in self.__siparisler:
+            raise ValueError("Bu id ile kayıtlı sipariş zaten var.")
+
+        self.__siparisler[siparis_id] = siparis
+        return siparis_id
+
+    # Verilen id'ye göre siparişi getirir (yoksa None).
+    def id_ile_getir(self, siparis_id: int):
+        if not isinstance(siparis_id, int) or siparis_id <= 0:
+            raise ValueError("siparis_id pozitif int olmalıdır.")
+        return self.__siparisler.get(siparis_id)
+
+    # Repo'daki tüm siparişleri liste olarak döndürür.
+    def tumunu_listele(self) -> list:
+        return list(self.__siparisler.values())
+
+    # Verilen kullanıcı adına göre siparişleri döndürür.
+    def kullaniciya_gore_listele(self, owner: str) -> list:
+        if not isinstance(owner, str) or not owner.strip():
+            raise ValueError("owner boş olamaz.")
+
+        owner = owner.strip()
+        sonuc = []
+        for s in self.__siparisler.values():
+            if self.__siparis_sahibi(s) == owner:
+                sonuc.append(s)
+        return sonuc
+
+    # Servis uyumu için alias: add.
+    def add(self, siparis) -> int:
+        return self.ekle(siparis)
+
+    # Servis uyumu için alias: get_by_id.
+    def get_by_id(self, siparis_id: int):
+        return self.id_ile_getir(siparis_id)
+
+    # Servis uyumu için alias: list_all.
+    def list_all(self) -> list:
+        return self.tumunu_listele()
+
+    # Servis uyumu için alias: list_by_owner.
+    def list_by_owner(self, owner: str) -> list:
+        return self.kullaniciya_gore_listele(owner)
+
+    # Opsiyonel: güncelleme gerekiyorsa aynı id üstüne yazar.
+    def guncelle(self, siparis) -> None:
+        siparis_id = self.__siparis_id(siparis)
+        if siparis_id is None or not isinstance(siparis_id, int) or siparis_id <= 0:
+            raise ValueError("Güncellenecek siparişin id'si geçersiz.")
+        if siparis_id not in self.__siparisler:
+            raise ValueError("Güncellenecek sipariş repo'da yok.")
+        self.__siparisler[siparis_id] = siparis
+
+    # Opsiyonel alias: update.
+    def update(self, siparis) -> None:
+        self.guncelle(siparis)
+
 
 
 

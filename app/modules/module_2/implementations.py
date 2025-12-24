@@ -8,7 +8,7 @@ class CashPayment(PaymentMethod):#balance var limit yok
    def __init__(self, owner: str, balance: float, currency: str | None = None):
       if currency is None:
          currency = self.varsayilan_currency()  # currency verilmezse varsayılan kullanılır
-      super().__init(owner = owner, balance = balance, currency = currency,limit = None)
+      super().__init__(owner = owner, balance = balance, currency = currency,limit = None)
       
    #Ödeme yapılmadan önce yeterli bakiye var mı kontrol
    def authorize(self, amount: float) -> bool: #Abstract method override
@@ -145,7 +145,7 @@ class CreditCardPayment(PaymentMethod): #limit kullanılır balance kullanılmaz
    def masked_card_no(self) -> str:
       return "*" * (len(self.__card_no) - 4) + self.__card_no[-4:]
    
-      #ödeme işlemleri
+   #ödeme işlemleri
    def authorize(self, amount: float) -> bool: #Tutar geçerli mi
       if not self.tutar_gecerli_mi(amount):
          return False
@@ -449,8 +449,6 @@ class MenuItem:
             available_days=[1, 3, 5]
         )
 
-from datetime import datetime
-
 #Kullanıcının oluşturduğu siparişi temsil eden entity sınıfı
 class Order:
    def __init__(self, id: int, owner: str, items: list[MenuItem], currency: str = "TRY",
@@ -656,8 +654,6 @@ class Order:
             paid_amount=0.0
       )
 
-from datetime import datetime
-
 #Yapılan ödeme işlemini kayıt altına alan entity sınıfı
 class PaymentTransaction:
    
@@ -799,7 +795,7 @@ class PaymentTransaction:
    #Transaction id geçerli mi kontrol eder
    @staticmethod
    def id_gecerli_mi(tx_id: int) -> bool:
-      return isinstance(tx_id, int) and tx_id > 0
+      return isinstance(tx_id, int) and tx_id >= 0
    
    @classmethod
    def basarili(cls, owner: str, amount: float, currency: str, method_type: str,
@@ -888,7 +884,7 @@ class CafeteriaService:
          mevcut = self._repo_cagir(self._order_repo, ["tumunu_listele", "list_all"])
          mevcut_list = self._liste_yap(mevcut)
       except Exception:
-         mevcut_list = []
+         mevcut_list = [] 
 
       en_buyuk = 0
       for o in mevcut_list:
@@ -903,41 +899,6 @@ class CafeteriaService:
 
       return en_buyuk + 1
 
-
-   # Verilen ürün id’lerinden sipariş oluşturur ve repo’ya kaydeder
-   def siparis_olustur(self, owner: str, urun_idleri: List[int]) -> Order:
-      if not isinstance(owner, str) or not owner.strip():
-         raise ValueError("owner boş olamaz.")
-      if not isinstance(urun_idleri, list) or not urun_idleri:
-         raise ValueError("Sipariş için en az 1 ürün seçmelisin.")
-
-      items: List[MenuItem] = []
-      for uid in urun_idleri:
-         urun = self.urun_getir(uid)
-         if urun is None:
-            raise ValueError(f"Ürün bulunamadı: id={uid}")
-
-         # MenuItem.get_is_available() varsa onu kullan
-         get_av = getattr(urun, "get_is_available", None)
-         if callable(get_av):
-            if get_av() is False:
-                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
-
-         items.append(urun)
-
-      yeni_id = self._yeni_siparis_id()
-
-      order = Order(
-         id=yeni_id,  #id veriyoruz 
-         owner=owner.strip(),
-         items=items,
-         currency=self.varsayilan_para_birimi(),
-         created_at=datetime.now(),
-         status="SİPARİŞ OLUŞTURULDU",
-      )
-
-      self._repo_cagir(self._order_repo, ["ekle", "add"], order)
-      return order
 
 #MENU
    #Tüm menüyü listeler (aktif filtreli / filtresiz).
@@ -986,15 +947,9 @@ class CafeteriaService:
             raise ValueError(f"Ürün bulunamadı: id={uid}")
 
          # MenuItem’ında aktiflik kontrolü
-         aktif_deger = getattr(urun, "get_is_available", None)
-         if callable(aktif_deger):
-            if aktif_deger() is False:
-                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
-         else:
-            # eski alan adları için (varsa)
-            raw = getattr(urun, "_MenuItem__is_available", True)
-            if raw is False:
-                  raise ValueError(f"Bu ürün şu an aktif değil: id={uid}")
+         get_av = getattr(urun, "get_is_available", None)
+         if callable(get_av) and get_av() is False:
+            raise  ValueError(f"Bu ürün şu an aktif değil: id={uid}")
 
          items.append(urun)
 
@@ -1059,12 +1014,12 @@ class CafeteriaService:
       
       order_owner = order.get_owner()
       # toplam tutar
-      toplam = order.toplam_tutar()
+      toplam = order.odenecek_tutar()
 
       # ödeme yöntemi seçimi
       secilen = payment_method
       if secilen is None and otomatik_sec:
-         secilen = self.uygun_odeme_yontemi_sec(order.owner, toplam)
+         secilen = self.uygun_odeme_yontemi_sec(order.get_owner(), toplam)
 
       if secilen is None:
          # hiç yöntem yoksa bile tx kaydı düşelim
@@ -1090,11 +1045,12 @@ class CafeteriaService:
 
       if not yetki:
          tx = PaymentTransaction.basarisiz(
-               owner=order.owner,
+               owner=order.get_owner(),
                amount=toplam,
                currency=getattr(secilen, "get_currency", lambda: self.varsayilan_para_birimi())(),
                method_type=secilen.__class__.__name__,
-               reason=("Yetkilendirme başarısız." + (f" {hata}" if hata else ""))
+               reason=("Yetkilendirme başarısız." + (f" {hata}" if hata else "")),
+               order_id=order.get_id(),
          )
          self._repo_cagir(self._tx_repo, ["ekle", "add"], tx)
          return tx
@@ -1118,7 +1074,7 @@ class CafeteriaService:
 
       # başarılı tx
       tx = PaymentTransaction.basarili(
-         owner=order.owner,
+         owner=order.get_owner(),
          amount=toplam,
          currency=getattr(secilen, "get_currency", lambda: self.varsayilan_para_birimi())(),
          method_type=secilen.__class__.__name__,
@@ -1158,9 +1114,9 @@ class CafeteriaService:
    #Sadece başarılı işlemleri döndürür (repo destekliyorsa)
    def basarili_islemler(self) -> list[PaymentTransaction]: 
       try:
-         sonuc = self._repo_cagir(self._tx_repo, ["duruma_gore_listele", "list_by_status"], "BASARILI")
+         sonuc = self._repo_cagir(self._tx_repo, ["duruma_gore_listele", "list_by_status"], "BAŞARILI")
          return self._liste_yap(sonuc)
       except Exception:
          # repo’da yoksa basit filtre
          txs = self.islemleri_listele()
-         return [t for t in txs if getattr(t, "status", "") in {"BASARILI", "SUCCESS", "OK"}]
+         return [t for t in txs if getattr(t, "get_status", lambda: "")() == "BAŞARILI"]

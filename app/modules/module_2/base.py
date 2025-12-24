@@ -126,9 +126,9 @@ class PaymentMethod(ABC):
         return "TRY"
     #kısa bilgi döndürür
     def get_info(self) -> str: 
-        trip = self.__class__.__name__
+        tip = self.__class__.__name__
         tutar = self.kullanilabilir_tutar()
-        return f"{trip} | Kişi: {self.__owner} | Para Birimi: {self.__currency} | Kullanılabilir Tutar: {tutar}"
+        return f"{tip} | Kişi: {self.__owner} | Para Birimi: {self.__currency} | Kullanılabilir Tutar: {tutar}"
     
     
 
