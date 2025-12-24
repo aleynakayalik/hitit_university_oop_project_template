@@ -278,6 +278,10 @@ class InMemoryMenuRepository:
 
         self.__urunler[urun_id] = menu_urunu
         return urun_id
+    #test ile bağladım
+    def add(self, item):
+        return self.ekle(item)   
+
 
     # ID ile menü ürününü bulur. Yoksa None döner.
     def id_ile_getir(self, id: int):
@@ -359,6 +363,39 @@ class InMemoryMenuRepository:
             sonuc.append(urun)
 
         return sonuc
+    
+    def id_ile_getir(self, urun_id: int):
+        for item in self.tumunu_listele():
+            if item.get_id() == urun_id:
+                return item
+        return None
+
+    def sil(self, urun_id: int) -> bool:
+        # A) liste ise:
+        if hasattr(self, "_items") and isinstance(self._items, list):
+            once = len(self._items)
+            self._items = [x for x in self._items if x.get_id() != urun_id]
+            return len(self._items) != once
+
+        # B) dict ise:
+        if hasattr(self, "_items") and isinstance(self._items, dict):
+            return self._items.pop(urun_id, None) is not None
+
+        raise RuntimeError("Repo iç yapısı bulunamadı. _items list/dict değil.")
+
+    def aktif_pasif_yap(self, urun_id: int, aktif: bool) -> bool:
+        item = self.id_ile_getir(urun_id)
+        if item is None:
+            return False
+        item.set_active(aktif)          
+        return True
+
+    def fiyat_guncelle(self, urun_id: int, yeni_fiyat: float) -> bool:
+        item = self.id_ile_getir(urun_id)
+        if item is None:
+            return False
+        item.set_price(yeni_fiyat)     
+        return True
     
 
 

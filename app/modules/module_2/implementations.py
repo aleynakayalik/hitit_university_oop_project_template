@@ -11,7 +11,7 @@ class CashPayment(PaymentMethod):#balance var limit yok
       super().__init__(owner = owner, balance = balance, currency = currency,limit = None)
       
    #Ödeme yapılmadan önce yeterli bakiye var mı kontrol
-   def authorize(self, amount: float) -> bool: #Abstract method override
+   def authorize(self, amount: float) -> bool: #Abstract method override polymorphism
       if not self.tutar_gecerli_mi(amount): #girilen tutar geçerli mi diye bakıyoruz
          return False
       
@@ -22,7 +22,7 @@ class CashPayment(PaymentMethod):#balance var limit yok
          
    
    #nakit ödeme işlemi
-   def odeme_yap(self, amount: float) -> bool: #Abstract method override
+   def odeme_yap(self, amount: float) -> bool: #Abstract method override polymorphism
       if not self.authorize(amount):
          return False
       
@@ -981,7 +981,7 @@ class CafeteriaService:
 
 #ÖDEME YÖNTEMİ SEÇME
    #Ödeme yöntemlerini listeler (kullanıcıya göre / hepsi).
-   def odeme_yontemleri(self, owner: str | None = None) -> list[PaymentMethod]:
+   def odeme_yontemleri(self, owner: str | None = None) -> list[PaymentMethod]: #polymorphism
       if owner and isinstance(owner, str) and owner.strip():
          sonuc = self._repo_cagir(self._payment_repo, ["kullaniciya_gore_listele", "list_by_owner"], owner.strip())
          return self._liste_yap(sonuc)
@@ -989,7 +989,7 @@ class CafeteriaService:
       return self._liste_yap(sonuc)
 
    #Kullanıcının ödeme yöntemleri içinde authorize(tutar) geçen ilk yöntemi seçer.
-   #Polimorfizm: Cash/CreditCard/Wallet hepsi PaymentMethod gibi davranır.
+   #Polymorphism: Cash/CreditCard/Wallet hepsi PaymentMethod gibi davranır.
    def uygun_odeme_yontemi_sec(self, owner: str, tutar: float) -> PaymentMethod | None:
       
       yontemler = self.odeme_yontemleri(owner)

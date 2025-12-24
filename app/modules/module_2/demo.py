@@ -1,4 +1,3 @@
-# app/modules/module_2/demo.py
 from __future__ import annotations
 
 from typing import List
@@ -212,14 +211,27 @@ def _float_al(prompt: str, min_deger: float | None = None) -> float:
         return v
 
 
-# ---------------------------
-#   ÇIKTI FORMATLAMA (OKUNAKLI)
+
+#   ÇIKTI FORMATLAMA
 # ---------------------------
 def _para(x: float) -> str:
     try:
         return f"{float(x):.2f} TRY"
     except Exception:
         return f"{x} TRY"
+
+
+def _urunleri_yaz(items: List[MenuItem]) -> None:
+    if not items:
+        print(" Menüde ürün yok.")
+        return
+    for u in items:
+        # getter yoksa attribute fallback 
+        uid = getattr(u, "get_id", lambda: getattr(u, "id", "-"))()
+        ad = getattr(u, "get_name", lambda: getattr(u, "name", "-"))()
+        kat = getattr(u, "get_category", lambda: getattr(u, "category", "-"))()
+        fiyat = getattr(u, "get_price", lambda: getattr(u, "price", 0.0))()
+        print(f"- ID:{uid} | {ad} | {kat} | {_para(fiyat)}")
 
 
 def _siparis_yazdir(order) -> None:
@@ -238,7 +250,7 @@ def _siparis_yazdir(order) -> None:
     notes = getattr(order, "get_notes", lambda: "")()
 
     _sep()
-    print("🧾 SİPARİŞ OLUŞTURULDU")
+    print(" SİPARİŞ OLUŞTURULDU")
     print(f"• Sipariş No   : {oid}")
     print(f"• Kişi         : {owner}")
     print(f"• Durum        : {status}")
@@ -355,11 +367,10 @@ def _kalan_tutar_yazdir(owner: str, nakit: CashPayment, kart: CreditCardPayment,
     print(f"• Bakiye      : {_para(cuzd.kullanilabilir_tutar())}")
 
 
-# ---------------------------
-#   SİSTEM OLUŞTURMA (GÜVENLİ)
+
+#   ÖDEME YÖNTEMİ OLUŞTURMA
 # ---------------------------
 def _kart_olustur_guvenli(owner: str, kart_limit: float) -> CreditCardPayment:
-    # Kart başlığı sadece 1 kere gözüksün (yanlış girip tekrar denese bile)
     ilk_sefer = True
     while True:
         if ilk_sefer:
@@ -421,7 +432,7 @@ def _cuzdan_olustur_guvenli(owner: str, cuzd_bakiye: float) -> OnlineWalletPayme
             print(f" Cüzdan bilgileri hatalı: {e}")
             tekrar = _evet_hayir_al("Cüzdan bilgilerini tekrar girmek ister misin? (e/h): ")
             if not tekrar:
-                print("⚠️ Cüzdan olmadan devam ediliyor (bakiye=0, pasif).")
+                print(" Cüzdan olmadan devam ediliyor (bakiye=0, pasif).")
                 return OnlineWalletPayment(
                     owner=owner,
                     wallet_id="CUZDAN00",
@@ -431,31 +442,9 @@ def _cuzdan_olustur_guvenli(owner: str, cuzd_bakiye: float) -> OnlineWalletPayme
                 )
 
 
+
+#   SERVİS/REPO DOKUNMADAN TX/ORDER GÜNCELLEME (DEMO YARDIMCISI)
 # ---------------------------
-#   MENÜ / ÖDEME AKIŞI
-# ---------------------------
-def _urunleri_yaz(items: List[MenuItem]) -> None:
-    if not items:
-        print(" Menüde ürün yok.")
-        return
-    for u in items:
-        print(f"- ID:{u.get_id()} | {u.get_name()} | {u.get_category()} | {u.get_price():.2f} TRY")
-
-
-def _odeme_yontemi_sec(nakit: CashPayment, kart: CreditCardPayment, cuzd: OnlineWalletPayment):
-    _sep()
-    print(" Ödeme Yöntemi Seç")
-    print("1) Nakit")
-    print("2) Kredi Kartı")
-    print("3) Online Cüzdan")
-    sec = _secim_al("Seçim (1/2/3): ", {"1", "2", "3"})
-    if sec == "1":
-        return nakit
-    if sec == "2":
-        return kart
-    return cuzd
-
-
 def _tx_repo_ekle(servis: CafeteriaService, tx: PaymentTransaction) -> None:
     repo = getattr(servis, "_tx_repo", None)
     if repo is None:
@@ -475,6 +464,20 @@ def _order_repo_guncelle(servis: CafeteriaService, order: Order) -> None:
             fn(order)
         except Exception:
             pass
+
+
+def _odeme_yontemi_sec(nakit: CashPayment, kart: CreditCardPayment, cuzd: OnlineWalletPayment):
+    _sep()
+    print(" Ödeme Yöntemi Seç")
+    print("1) Nakit")
+    print("2) Kredi Kartı")
+    print("3) Online Cüzdan")
+    sec = _secim_al("Seçim (1/2/3): ", {"1", "2", "3"})
+    if sec == "1":
+        return nakit
+    if sec == "2":
+        return kart
+    return cuzd
 
 
 def _odeme_akisi(
@@ -513,7 +516,6 @@ def _odeme_akisi(
 
             print(" Ödeme başarısız: Yetersiz bakiye/limit veya yetkilendirme sorunu.")
             if not _evet_hayir_al("Başka yöntemle tekrar denensin mi? (e/h): "):
-                # ödeme bitti (başarısız) → bakiye özeti yazdır
                 _kalan_tutar_yazdir(owner, nakit, kart, cuzd)
                 break
             continue
@@ -560,63 +562,327 @@ def _odeme_akisi(
         _order_repo_guncelle(servis, order)
 
         _odeme_sonucu_yazdir(tx)
-        print("ÖDEME BAŞARILI!")
+        print(" ÖDEME BAŞARILI!")
 
-        # ödeme sonrası bakiye özeti
         _kalan_tutar_yazdir(owner, nakit, kart, cuzd)
         break
 
 
+
+#   ADMIN PANEL (DEMO)
+# ---------------------------
+def _repo_menu_ekle(menu_repo: InMemoryMenuRepository, item: MenuItem) -> None:
+    """Repo metot ismi farklıysa diye güvenli ekleme."""
+    fn = getattr(menu_repo, "ekle", None) or getattr(menu_repo, "add", None)
+    if not callable(fn):
+        raise RuntimeError("Menu repository 'ekle' veya 'add' metoduna sahip değil.")
+    fn(item)
+
+
+def _repo_menu_sil(menu_repo: InMemoryMenuRepository, urun_id: int) -> bool:
+    """
+    Farklı repo implementasyonlarını tolere ederek silme.
+    True dönerse silinmiştir.
+    """
+    # Muhtemel isimler
+    for ad in ("sil", "delete", "kaldir", "remove"):
+        fn = getattr(menu_repo, ad, None)
+        if callable(fn):
+            try:
+                fn(urun_id)
+                return True
+            except Exception:
+                pass
+
+    # Repo içinde dict/list varsa brute-force (demo amaçlı)
+    for attr_name in ("_items", "__items", "_InMemoryMenuRepository__items", "_veriler", "__veriler",
+                      "_InMemoryMenuRepository__veriler", "_menu", "__menu"):
+        data = getattr(menu_repo, attr_name, None)
+        if isinstance(data, dict):
+            if urun_id in data:
+                del data[urun_id]
+                return True
+        if isinstance(data, list):
+            once = len(data)
+            data[:] = [x for x in data if getattr(x, "get_id", lambda: getattr(x, "id", None))() != urun_id]
+            return len(data) != once
+
+    return False
+
+
+def _repo_menu_urun_bul(menu_repo: InMemoryMenuRepository, urun_id: int):
+    """
+    Repo'da ürün bulma (metot isimleri değişik olabilir diye).
+    """
+    for ad in ("id_ile_getir", "get_by_id", "bul", "find"):
+        fn = getattr(menu_repo, ad, None)
+        if callable(fn):
+            try:
+                return fn(urun_id)
+            except Exception:
+                pass
+
+    # Hiç metot yoksa listeleri tarayalım (demo amaçlı)
+    for attr_name in ("_items", "__items", "_InMemoryMenuRepository__items", "_veriler", "__veriler",
+                      "_InMemoryMenuRepository__veriler", "_menu", "__menu"):
+        data = getattr(menu_repo, attr_name, None)
+        if isinstance(data, dict):
+            return data.get(urun_id)
+        if isinstance(data, list):
+            for x in data:
+                xid = getattr(x, "get_id", lambda: getattr(x, "id", None))()
+                if xid == urun_id:
+                    return x
+    return None
+
+
+def _urun_aktif_yap(urun, aktif: bool) -> bool:
+    """
+    Ürünü aktif/pasif yapmayı dener. Başarılıysa True.
+    """
+    # setter varsa
+    for ad in ("set_active", "set_is_active", "set_aktif_mi"):
+        fn = getattr(urun, ad, None)
+        if callable(fn):
+            try:
+                fn(aktif)
+                return True
+            except Exception:
+                pass
+
+    # attribute varsa
+    for attr in ("is_active", "active", "aktif_mi"):
+        if hasattr(urun, attr):
+            try:
+                setattr(urun, attr, aktif)
+                return True
+            except Exception:
+                pass
+
+    # private bile olsa denemeyelim; encapsulation bozulmasın
+    return False
+
+
+def _urun_fiyat_guncelle(urun, yeni_fiyat: float) -> bool:
+    """
+    Ürünün fiyatını güncellemeyi dener. Başarılıysa True.
+    """
+    for ad in ("set_price", "set_fiyat"):
+        fn = getattr(urun, ad, None)
+        if callable(fn):
+            try:
+                fn(yeni_fiyat)
+                return True
+            except Exception:
+                pass
+
+    for attr in ("price", "fiyat"):
+        if hasattr(urun, attr):
+            try:
+                setattr(urun, attr, yeni_fiyat)
+                return True
+            except Exception:
+                pass
+
+    return False
+
+
+def _admin_menu_ekrani(servis: CafeteriaService) -> None:
+    """
+    Admin: menüye ürün ekle / listele / sil / aktif-pasif / fiyat güncelle
+    """
+    _sep()
+    print(" ADMIN PANEL - Yemekhane Menüsü Yönetimi")
+
+    menu_repo = getattr(servis, "_menu_repo", None) or getattr(servis, "menu_repo", None)
+    if menu_repo is None:
+        print(" Servis içinde menu_repo bulunamadı. (CafeteriaService içinde _menu_repo var mı?)")
+        return
+
+    while True:
+        _sep()
+        print("1) Ürünleri Listele (aktif)")
+        print("2) Ürünleri Listele (tümü)")
+        print("3) Yeni Ürün Ekle")
+        print("4) Ürün Sil (ID ile)")
+        print("5) Ürün Aktif/Pasif Yap (ID ile)")
+        print("6) Ürün Fiyat Güncelle (ID ile)")
+        print("7) Admin Panelden Çık")
+        sec = _secim_al("Seçim (1/2/3/4/5/6/7): ", {"1", "2", "3", "4", "5", "6", "7"})
+
+        if sec == "7":
+            break
+
+        if sec == "1":
+            _sep()
+            print(" AKTİF ÜRÜNLER")
+            items = servis.menu_listele(sadece_aktif=True)
+            _urunleri_yaz(items)
+            continue
+
+        if sec == "2":
+            _sep()
+            print(" TÜM ÜRÜNLER")
+            try:
+                items = servis.menu_listele(sadece_aktif=False)
+            except Exception:
+                items = servis.menu_listele()
+            _urunleri_yaz(items)
+            continue
+
+        if sec == "3":
+            _sep()
+            print(" YENİ ÜRÜN EKLE")
+
+            urun_id = _int_al("Ürün ID (pozitif): ", min_deger=1)
+            ad = _metin_al("Ürün adı: ")
+            kategori = _metin_al("Kategori (örn: corba/ana/icecek/yan): ").strip().lower()
+            fiyat = _float_al("Fiyat (TRY): ", min_deger=0.0)
+            aktif_mi = _evet_hayir_al("Ürün aktif mi? (e/h): ")
+
+            tag_raw = input("Tag'ler (virgülle, boş olabilir) örn: vegan,glutensiz : ").strip()
+            tags = [t.strip().lower() for t in tag_raw.split(",") if t.strip()] if tag_raw else []
+
+            gun_raw = input("Uygun günler (1-5, virgülle) örn: 1,3,5 (boş=her gün): ").strip()
+            if gun_raw:
+                try:
+                    available_days = [int(x.strip()) for x in gun_raw.split(",") if x.strip()]
+                    for g in available_days:
+                        if g < 1 or g > 5:
+                            raise ValueError()
+                except Exception:
+                    print(" Gün formatı hatalı. Örn: 1,3,5 veya boş.")
+                    continue
+            else:
+                available_days = [1, 2, 3, 4, 5]
+
+            try:
+                yeni = MenuItem(
+                    urun_id,
+                    ad,
+                    fiyat,
+                    kategori,
+                    aktif_mi,
+                    tags=tags,
+                    available_days=available_days,
+                )
+            except TypeError:
+                yeni = MenuItem(urun_id, ad, fiyat, kategori)
+
+                _urun_aktif_yap(yeni, aktif_mi)
+
+                set_tags = getattr(yeni, "set_tags", None)
+                if callable(set_tags):
+                    try:
+                        set_tags(tags)
+                    except Exception:
+                        pass
+
+                set_days = getattr(yeni, "set_available_days", None)
+                if callable(set_days):
+                    try:
+                        set_days(available_days)
+                    except Exception:
+                        pass
+
+            try:
+                _repo_menu_ekle(menu_repo, yeni)
+            except Exception as e:
+                print(f" Ürün eklenemedi: {e}")
+                continue
+
+            _sep()
+            print(" Ürün eklendi!")
+            _urunleri_yaz([yeni])
+            continue
+
+        if sec == "4":
+            _sep()
+            print(" ÜRÜN SİL (ID ile)")
+            urun_id = _int_al("Silinecek ürün ID: ", min_deger=1)
+
+            hedef = _repo_menu_urun_bul(menu_repo, urun_id)
+            if hedef is None:
+                print(" Bu ID ile ürün bulunamadı.")
+                continue
+
+            _sep()
+            print("Silinecek ürün:")
+            _urunleri_yaz([hedef])
+
+            if not _evet_hayir_al("Emin misin? (e/h): "):
+                print("↩ İptal edildi.")
+                continue
+
+            ok = _repo_menu_sil(menu_repo, urun_id)
+            print(" Silindi." if ok else " Silinemedi .")
+            continue
+
+        if sec == "5":
+            _sep()
+            print(" ÜRÜN AKTİF/PASİF (ID ile)")
+            urun_id = _int_al("Ürün ID: ", min_deger=1)
+
+            hedef = _repo_menu_urun_bul(menu_repo, urun_id)
+            if hedef is None:
+                print(" Bu ID ile ürün bulunamadı.")
+                continue
+
+            _sep()
+            print("Seçilen ürün:")
+            _urunleri_yaz([hedef])
+
+            aktif = _evet_hayir_al("Aktif yap? (e=aktif / h=pasif): ")
+            ok = _urun_aktif_yap(hedef, aktif)
+            print(" Güncellendi." if ok else " Güncellenemedi .")
+            continue
+
+        if sec == "6":
+            _sep()
+            print(" ÜRÜN FİYAT GÜNCELLE (ID ile)")
+            urun_id = _int_al("Ürün ID: ", min_deger=1)
+
+            hedef = _repo_menu_urun_bul(menu_repo, urun_id)
+            if hedef is None:
+                print(" Bu ID ile ürün bulunamadı.")
+                continue
+
+            _sep()
+            print("Seçilen ürün:")
+            _urunleri_yaz([hedef])
+
+            yeni_fiyat = _float_al("Yeni fiyat (TRY): ", min_deger=0.0)
+            ok = _urun_fiyat_guncelle(hedef, yeni_fiyat)
+            print(" Fiyat güncellendi." if ok else " Güncellenemedi .")
+            continue
+
+
+# ---------------------------
+#   MENÜYÜ BAŞLANGIÇTA DOLDUR
+# ---------------------------
 def _menuyu_repo_doldur(menu_repo: InMemoryMenuRepository) -> None:
-    menu_repo.ekle(MenuItem(1, "Mercimek Çorbası", 18.0, "corba", True, tags=["vegan"], available_days=[1, 3, 5]))
-    menu_repo.ekle(MenuItem(2, "Pilav", 22.0, "ana", True, tags=["glutensiz"], available_days=[1, 2, 3, 4, 5]))
-    menu_repo.ekle(MenuItem(3, "Tavuk Sote", 55.0, "ana", True, tags=["protein"], available_days=[2, 4]))
-    menu_repo.ekle(MenuItem(4, "Makarna", 30.0, "ana", True, tags=["klasik"], available_days=[1, 3]))
-    menu_repo.ekle(MenuItem(5, "Ayran", 10.0, "icecek", True, tags=["sut"], available_days=[1, 2, 3, 4, 5]))
-    menu_repo.ekle(MenuItem(6, "Salata", 16.0, "yan", True, tags=["hafif"], available_days=[2, 3, 5]))
+    fn = getattr(menu_repo, "ekle", None) or getattr(menu_repo, "add", None)
+    if not callable(fn):
+        raise RuntimeError("Menu repo'da ekle/add metodu yok.")
+
+    fn(MenuItem(1, "Mercimek Çorbası", 18.0, "corba", True, tags=["vegan"], available_days=[1, 3, 5]))
+    fn(MenuItem(2, "Pilav", 22.0, "ana", True, tags=["glutensiz"], available_days=[1, 2, 3, 4, 5]))
+    fn(MenuItem(3, "Tavuk Sote", 55.0, "ana", True, tags=["protein"], available_days=[2, 4]))
+    fn(MenuItem(4, "Makarna", 30.0, "ana", True, tags=["klasik"], available_days=[1, 3]))
+    fn(MenuItem(5, "Ayran", 10.0, "icecek", True, tags=["sut"], available_days=[1, 2, 3, 4, 5]))
+    fn(MenuItem(6, "Salata", 16.0, "yan", True, tags=["hafif"], available_days=[2, 3, 5]))
 
 
 # ---------------------------
-#   MAIN
+#   ÖĞRENCİ AKIŞI
 # ---------------------------
-def main() -> None:
-    _sep()
-    print("Akıllı Kampüs - Modül 2 (Yemekhane / Sipariş / Ödeme)")
-
-    owner = _ad_soyad_al("Ad Soyad : ")
-
-    _sep()
-    print("Başlangıç Para Bilgileri (Bu miktarlardan ödeme oldukça düşecek)")
-    nakit_bakiye = _float_al("Nakit bakiye (TRY): ", min_deger=0.0)
-    kart_limit = _float_al("Kredi kartı limiti (TRY): ", min_deger=0.0)
-    cuzd_bakiye = _float_al("Online cüzdan bakiye (TRY): ", min_deger=0.0)
-
-    # Repo'lar
-    menu_repo = InMemoryMenuRepository()
-    order_repo = InMemoryOrderRepository()
-    tx_repo = InMemoryTransactionRepository()
-    pay_repo = InMemoryPaymentRepository()
-
-    _menuyu_repo_doldur(menu_repo)
-
-    # Ödeme yöntemleri (kart bilgisi SADECE 1 kere burada sorulur)
-    nakit = CashPayment(owner=owner, balance=nakit_bakiye, currency="TRY")
-    kart = _kart_olustur_guvenli(owner, kart_limit)
-    cuzd = _cuzdan_olustur_guvenli(owner, cuzd_bakiye)
-
-    pay_repo.ekle(nakit)
-    pay_repo.ekle(kart)
-    pay_repo.ekle(cuzd)
-
-    servis = CafeteriaService(menu_repo=menu_repo, order_repo=order_repo, tx_repo=tx_repo, payment_repo=pay_repo)
-
-    # Ana döngü
+def _ogrenci_akisi(servis: CafeteriaService, owner: str, nakit: CashPayment, kart: CreditCardPayment, cuzd: OnlineWalletPayment) -> None:
     while True:
         _sep()
         print("Ne yapmak istiyorsun?")
         print("1) Okul yemeği (Haftalık menü)")
         print("2) Sipariş ver (ürün seç)")
-        print("3) Çıkış")
+        print("3) Çıkış (raporları göster)")
         ana = _secim_al("Seçim (1/2/3): ", {"1", "2", "3"})
 
         if ana == "3":
@@ -632,7 +898,7 @@ def main() -> None:
             print(f" {gun_adi} Menüsü")
             _urunleri_yaz(items)
 
-            toplam = sum(u.get_price() for u in items)
+            toplam = sum(getattr(u, "get_price", lambda: getattr(u, "price", 0.0))() for u in items)
             print(f"\n Menü Toplam: {_para(toplam)}")
 
             uygun = _evet_hayir_al("Bu menü sizin için uygun mu? (e/h): ")
@@ -644,7 +910,7 @@ def main() -> None:
                 print(" Bugün için menü boş, ödeme yapılamaz.")
                 continue
 
-            urun_idleri = [u.get_id() for u in items]
+            urun_idleri = [getattr(u, "get_id", lambda: getattr(u, "id", None))() for u in items]
             order = servis.siparis_olustur(owner=owner, urun_idleri=urun_idleri)
 
             _siparis_yazdir(order)
@@ -687,7 +953,7 @@ def main() -> None:
             _sep()
             print(" Seçilenler:")
             _urunleri_yaz(secilen_items)
-            toplam = sum(u.get_price() for u in secilen_items)
+            toplam = sum(getattr(u, "get_price", lambda: getattr(u, "price", 0.0))() for u in secilen_items)
             print(f"\nToplam: {_para(toplam)}")
 
             indirim_istiyor = _evet_hayir_al("Öğrenci indirimi %10 ister misin? (e/h): ")
@@ -715,17 +981,81 @@ def main() -> None:
                 pass
 
             _siparis_yazdir(order)
-            print(f"\n Ödenecek Tutar (indirime göre): {_para(order.odenecek_tutar())}")
+            try:
+                print(f"\n Ödenecek Tutar (indirime göre): {_para(order.odenecek_tutar())}")
+            except Exception:
+                pass
 
             _odeme_akisi(servis, owner, order, nakit, kart, cuzd)
             continue
 
-    # Demo sonu raporlar
-    _islemleri_liste_yazdir(" İşlem Geçmişi (Tümü)", servis.islemleri_listele())
-    _islemleri_liste_yazdir(" Sadece Başarılı İşlemler", servis.basarili_islemler())
-    _islemleri_liste_yazdir(f" {owner} için İşlemler", servis.islemleri_listele(owner=owner))
 
-    _kalan_tutar_yazdir(owner, nakit, kart, cuzd)
+# ---------------------------
+#   MAIN
+# ---------------------------
+def main() -> None:
+    _sep()
+    print("Akıllı Kampüs - Modül 2 (Yemekhane / Sipariş / Ödeme)")
+
+    # Repo'lar (tek sistem)
+    menu_repo = InMemoryMenuRepository()
+    order_repo = InMemoryOrderRepository()
+    tx_repo = InMemoryTransactionRepository()
+    pay_repo = InMemoryPaymentRepository()
+
+    _menuyu_repo_doldur(menu_repo)
+
+    servis = CafeteriaService(menu_repo=menu_repo, order_repo=order_repo, tx_repo=tx_repo, payment_repo=pay_repo)
+
+    # Role seçimi döngüsü
+    while True:
+        _sep()
+        print("Giriş Türü Seç")
+        print("1) Admin (Menü Yönetimi)")
+        print("2) Öğrenci (Sipariş / Ödeme)")
+        print("3) Çıkış")
+        rol = _secim_al("Seçim (1/2/3): ", {"1", "2", "3"})
+
+        if rol == "3":
+            break
+
+        if rol == "1":
+            _admin_menu_ekrani(servis)
+            continue
+
+        # Öğrenci girişi
+        owner = _ad_soyad_al("Ad Soyad : ")
+
+        _sep()
+        print("Başlangıç Para Bilgilerini Giriniz")
+        nakit_bakiye = _float_al("Nakit bakiye (TRY): ", min_deger=0.0)
+        kart_limit = _float_al("Kredi kartı limiti (TRY): ", min_deger=0.0)
+        cuzd_bakiye = _float_al("Online cüzdan bakiye (TRY): ", min_deger=0.0)
+
+        # Ödeme yöntemleri (kart/cüzdan bilgisi burada 1 kere sorulur)
+        nakit = CashPayment(owner=owner, balance=nakit_bakiye, currency="TRY")
+        kart = _kart_olustur_guvenli(owner, kart_limit)
+        cuzd = _cuzdan_olustur_guvenli(owner, cuzd_bakiye)
+
+        # Repo'ya kayıt
+        fnp = getattr(pay_repo, "ekle", None) or getattr(pay_repo, "add", None)
+        if callable(fnp):
+            fnp(nakit)
+            fnp(kart)
+            fnp(cuzd)
+
+        # Öğrenci akışı
+        _ogrenci_akisi(servis, owner, nakit, kart, cuzd)
+
+        # Öğrenci çıkınca raporlar
+        _islemleri_liste_yazdir(" İşlem Geçmişi (Tümü)", servis.islemleri_listele())
+        _islemleri_liste_yazdir(" Sadece Başarılı İşlemler", servis.basarili_islemler())
+        _islemleri_liste_yazdir(f" {owner} için İşlemler", servis.islemleri_listele(owner=owner))
+
+        _kalan_tutar_yazdir(owner, nakit, kart, cuzd)
+
+        _sep()
+        print("Öğrenci oturumu bitti. Rol seçimine dönülüyor...")
 
     _sep()
     print(" Demo bitti.")
